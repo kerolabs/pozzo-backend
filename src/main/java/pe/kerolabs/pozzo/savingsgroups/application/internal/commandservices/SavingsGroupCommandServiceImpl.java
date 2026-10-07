@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
@@ -30,7 +31,7 @@ import java.util.UUID;
 
 /**
  * Orchestrates the lifecycle of a savings group: create it, adjust its rules, invite and register
- * members, and start it.
+ * members, start it and close it when its cycle is over.
  */
 @Service
 @Transactional
@@ -174,6 +175,16 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
                     expireActiveInvitations(group.getId());
                     return started;
                 });
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(CloseGroupCommand command) {
+        var group = savingsGroupRepository.findById(command.groupId());
+        if (group.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("SavingsGroup", command.groupId().toString()));
+        }
+        group.get().close();
+        return Result.success(savingsGroupRepository.save(group.get()));
     }
 
     private void expireActiveInvitations(UUID groupId) {
