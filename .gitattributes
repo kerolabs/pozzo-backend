@@ -1,2 +1,23 @@
-/mvnw text eol=lf
+# Normalize text files to LF in the repository and the working tree
+* text=auto eol=lf
+
+# Windows scripts need CRLF
+*.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Unix scripts must stay LF
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Binary files
+*.jar   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.ttf   binary
+*.woff  binary
+*.woff2 binary
