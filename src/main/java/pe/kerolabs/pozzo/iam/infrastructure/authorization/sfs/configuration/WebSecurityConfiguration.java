@@ -24,10 +24,11 @@ import java.util.List;
 @EnableMethodSecurity
 public class WebSecurityConfiguration {
 
-    private static final String[] PUBLIC_DOCUMENTATION = {
+    private static final String[] PUBLIC_ENDPOINTS = {
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            "/actuator/health",
             "/error"
     };
 
@@ -63,7 +64,7 @@ public class WebSecurityConfiguration {
                         .authenticationEntryPoint(unauthorizedRequestHandler)
                         .accessDeniedHandler(unauthorizedRequestHandler))
                 .authorizeHttpRequests(requests -> requests
-                        .requestMatchers(PUBLIC_DOCUMENTATION).permitAll()
+                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_AUTHENTICATION).permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new BearerAuthorizationRequestFilter(accountQueryService),
