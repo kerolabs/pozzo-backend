@@ -35,7 +35,8 @@ public class WebSecurityConfiguration {
     private static final String[] PUBLIC_AUTHENTICATION = {
             "/api/v1/auth/codes",
             "/api/v1/auth/codes/verify",
-            "/api/v1/auth/register"
+            "/api/v1/auth/register",
+            "/api/v1/auth/recovery/**"
     };
 
     private final AccountQueryService accountQueryService;

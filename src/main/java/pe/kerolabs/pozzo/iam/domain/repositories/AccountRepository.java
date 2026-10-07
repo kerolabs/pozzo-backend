@@ -17,5 +17,15 @@ public interface AccountRepository {
 
     boolean existsByPhoneNumber(PhoneNumber phoneNumber);
 
+    /**
+     * The active account whose profile has this backup email, already in lower case.
+     */
+    Optional<Account> findActiveByBackupEmail(String email);
+
+    /**
+     * True when an account other than {@code accountId} already uses the backup email.
+     */
+    boolean isBackupEmailUsedByAnother(String email, UUID accountId);
+
     Account save(Account account);
 }

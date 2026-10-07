@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.assemblers.SessionPe
 import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.entities.SessionPersistenceEntity;
 import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.repositories.SessionPersistenceRepository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -36,6 +37,13 @@ public class SessionRepositoryImpl implements SessionRepository {
     public Optional<Session> findByTokenHash(String tokenHash) {
         return persistenceRepository.findByTokenHash(tokenHash)
                 .map(SessionPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public List<Session> findAllNotRevokedByAccountId(UUID accountId) {
+        return persistenceRepository.findAllByAccountIdAndRevokedAtIsNull(accountId).stream()
+                .map(SessionPersistenceAssembler::toDomainFromPersistence)
+                .toList();
     }
 
     @Override

@@ -25,8 +25,8 @@ import java.util.UUID;
  * Issues and reads JSON Web Tokens signed with the server key (HMAC-SHA).
  *
  * <p>A session token carries the account as subject and the session as the {@code sid} claim.
- * A registration token carries the verified phone number as subject. The {@code typ} claim keeps
- * one kind of token from being used as the other.</p>
+ * A registration token carries the verified phone number as subject, and a recovery token the account
+ * proved with the backup email. The {@code typ} claim keeps one kind of token from being used as another.</p>
  */
 @Slf4j
 @Service
@@ -36,6 +36,7 @@ public class JwtTokenService implements TokenService {
     private static final String SESSION_CLAIM = "sid";
     private static final String SESSION_TYPE = "session";
     private static final String REGISTRATION_TYPE = "registration";
+    private static final String RECOVERY_TYPE = "recovery";
 
     private final SecretKey signingKey;
 
@@ -64,6 +65,22 @@ public class JwtTokenService implements TokenService {
                 .expiration(Date.from(expiresAt))
                 .signWith(signingKey)
                 .compact();
+    }
+
+    @Override
+    public String issueRecoveryToken(UUID accountId, Instant issuedAt, Instant expiresAt) {
+        return Jwts.builder()
+                .subject(accountId.toString())
+                .claim(TYPE_CLAIM, RECOVERY_TYPE)
+                .issuedAt(Date.from(issuedAt))
+                .expiration(Date.from(expiresAt))
+                .signWith(signingKey)
+                .compact();
+    }
+
+    @Override
+    public Optional<UUID> readRecoveryToken(String token) {
+        return parse(token, RECOVERY_TYPE).map(claims -> UUID.fromString(claims.getSubject()));
     }
 
     @Override
