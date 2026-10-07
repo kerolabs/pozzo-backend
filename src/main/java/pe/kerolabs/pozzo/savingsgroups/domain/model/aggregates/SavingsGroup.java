@@ -270,6 +270,20 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     }
 
     /**
+     * Closes the group when its cycle is over. Closing a closed group changes nothing.
+     */
+    public void close() {
+        if (status == GroupStatus.CLOSED) {
+            return;
+        }
+        if (status != GroupStatus.STARTED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_STARTED",
+                    "Only a group whose cycle has started can be closed");
+        }
+        this.status = GroupStatus.CLOSED;
+    }
+
+    /**
      * Returns the cutoff date of a turn.
      */
     public LocalDate cutoffDateOfTurn(int turnNumber) {
