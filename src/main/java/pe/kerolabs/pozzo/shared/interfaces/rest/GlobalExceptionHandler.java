@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
+import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.LocalizedMessages;
@@ -70,6 +71,15 @@ public class GlobalExceptionHandler {
                 ex.getMessage() != null
                         ? ex.getMessage()
                         : LocalizedMessages.resolveOrDefault("validation.request.failed", "Request validation failed")));
+    }
+
+    /**
+     * Operations rejected by an aggregate because they would break a business rule.
+     */
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ResponseEntity<ErrorResource> handleBusinessRuleViolation(BusinessRuleViolationException ex) {
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                ApplicationError.businessRuleViolation(ex.getCode(), ex.getMessage()));
     }
 
     /**
