@@ -1,0 +1,17 @@
+# Only pom.xml and src are needed to build the image
+target/
+.git/
+.github/
+.githooks/
+.idea/
+.vscode/
+.mvn/
+mvnw
+mvnw.cmd
+*.iml
+*.log
+
+# Never bake local credentials into the image
+.env
+*.env
+.env.example
