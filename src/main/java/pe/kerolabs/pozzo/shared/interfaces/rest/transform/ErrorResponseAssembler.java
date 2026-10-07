@@ -5,12 +5,17 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
+import pe.kerolabs.pozzo.shared.application.result.ErrorType;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
 
 import java.util.Locale;
 
 /**
  * Converts application errors into HTTP responses with a localized message.
+ *
+ * <p>The status comes from the error type. The message is looked up first by the specific
+ * code ({@code error.<code>.message}), then by the type ({@code error.<type>.message}), and
+ * falls back to the message carried by the error.</p>
  */
 @NullMarked
 public final class ErrorResponseAssembler {
@@ -19,58 +24,47 @@ public final class ErrorResponseAssembler {
     }
 
     /**
-     * Maps an ApplicationError to a ResponseEntity whose status follows the error code.
+     * Maps an ApplicationError to a ResponseEntity whose status follows the error type.
      *
      * @param error the application error
      * @return the response entity with the error body
      */
     public static ResponseEntity<ErrorResource> toErrorResponseFromApplicationError(ApplicationError error) {
         var resource = new ErrorResource(error.code(), toLocalizedMessage(error), error.details());
-        return new ResponseEntity<>(resource, toStatusFromErrorCode(error.code()));
+        return new ResponseEntity<>(resource, toStatusFromErrorType(error.type()));
     }
 
     /**
-     * Determines the HTTP status for an error code.
+     * Determines the HTTP status for an error type.
      *
-     * @param errorCode the error code (e.g. "SAVINGS_GROUP_NOT_FOUND", "VALIDATION_ERROR")
+     * @param type the error type
      * @return the matching HTTP status
      */
-    public static HttpStatusCode toStatusFromErrorCode(String errorCode) {
-        return switch (errorCode) {
-            case "VALIDATION_ERROR" -> HttpStatus.BAD_REQUEST;
-            case "UNAUTHORIZED" -> HttpStatus.UNAUTHORIZED;
-            case "FORBIDDEN" -> HttpStatus.FORBIDDEN;
-            case "BUSINESS_RULE_VIOLATION" -> HttpStatus.UNPROCESSABLE_CONTENT;
-            case String s when s.endsWith("_NOT_FOUND") -> HttpStatus.NOT_FOUND;
-            case String s when s.endsWith("_CONFLICT") -> HttpStatus.CONFLICT;
-            default -> HttpStatus.INTERNAL_SERVER_ERROR;
+    public static HttpStatusCode toStatusFromErrorType(ErrorType type) {
+        return switch (type) {
+            case VALIDATION -> HttpStatus.BAD_REQUEST;
+            case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
+            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case NOT_FOUND -> HttpStatus.NOT_FOUND;
+            case CONFLICT -> HttpStatus.CONFLICT;
+            case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_CONTENT;
+            case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
+            case UNEXPECTED -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
 
     private static String toLocalizedMessage(ApplicationError error) {
         var entityName = toEntityNameFromErrorCode(error.code());
-        var specific = LocalizedMessages.resolveOrNull(toSpecificMessageKey(error.code()), error.details(), entityName);
+        var specific = LocalizedMessages.resolveOrNull(toMessageKey(error.code()), error.details(), entityName);
         if (specific != null) {
             return specific;
         }
-        return LocalizedMessages.resolveOrDefault(toGenericMessageKey(error.code()), error.message(), error.details(), entityName);
+        return LocalizedMessages.resolveOrDefault(
+                toMessageKey(error.type().name()), error.message(), error.details(), entityName);
     }
 
-    private static String toSpecificMessageKey(String errorCode) {
-        return "error.%s.message".formatted(errorCode.toLowerCase(Locale.ROOT).replace('_', '-'));
-    }
-
-    private static String toGenericMessageKey(String errorCode) {
-        return switch (errorCode) {
-            case "VALIDATION_ERROR" -> "error.validation.message";
-            case "UNAUTHORIZED" -> "error.unauthorized.message";
-            case "FORBIDDEN" -> "error.forbidden.message";
-            case "BUSINESS_RULE_VIOLATION" -> "error.business-rule.message";
-            case "UNEXPECTED_ERROR" -> "error.unexpected.message";
-            case String s when s.endsWith("_NOT_FOUND") -> "error.not-found.message";
-            case String s when s.endsWith("_CONFLICT") -> "error.conflict.message";
-            default -> "error.generic.message";
-        };
+    private static String toMessageKey(String codeOrType) {
+        return "error.%s.message".formatted(codeOrType.toLowerCase(Locale.ROOT).replace('_', '-'));
     }
 
     private static String toEntityNameFromErrorCode(String errorCode) {
