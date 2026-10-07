@@ -4,7 +4,7 @@ package pe.kerolabs.pozzo.contributions.domain.model.valueobjects;
  * Difference between what was expected and what the receipt shows in one field.
  *
  * @param field    AMOUNT, PAYEE or DATE
- * @param expected the expected value, as shown to the organizer
+ * @param expected the expected value; for DATE, the cutoff date the payment had to meet
  * @param found    the value read from the receipt
  */
 public record Inconsistency(String field, String expected, String found) {

@@ -73,7 +73,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         }
         if (receipt.paidAt().isAfter(cutoffDate)) {
             contribution.inconsistencies.add(new Inconsistency(
-                    Inconsistency.DATE, "≤ " + cutoffDate, receipt.paidAt().toString()));
+                    Inconsistency.DATE, cutoffDate.toString(), receipt.paidAt().toString()));
         }
         if (contribution.inconsistencies.isEmpty()) {
             contribution.status = ContributionStatus.VALIDATED;
