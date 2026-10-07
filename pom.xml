@@ -73,4 +73,42 @@
         </plugins>
     </build>
 
+    <profiles>
+        <!-- Points git at the shared hooks in .githooks, so the commit-msg hook that
+             enforces the commit policy is active after the first Maven build. -->
+        <profile>
+            <id>git-hooks</id>
+            <activation>
+                <file>
+                    <exists>${project.basedir}/.git</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>install-git-hooks</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>git</executable>
+                                    <arguments>
+                                        <argument>config</argument>
+                                        <argument>core.hooksPath</argument>
+                                        <argument>.githooks</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>
