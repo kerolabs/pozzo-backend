@@ -39,4 +39,20 @@ public final class ResponseEntityAssembler {
                     ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
         };
     }
+
+    /**
+     * Converts a Result into an HTTP response without a body: {@code 204 No Content} for a success,
+     * the error response for a failure.
+     *
+     * @param result the application result
+     * @param <T>    the success value type, which is discarded
+     * @return response entity for success or failure
+     */
+    public static <T> ResponseEntity<?> toNoContentResponseEntityFromResult(Result<T, ApplicationError> result) {
+        return switch (result) {
+            case Result.Success<T, ApplicationError> success -> ResponseEntity.noContent().build();
+            case Result.Failure<T, ApplicationError> failure ->
+                    ErrorResponseAssembler.toErrorResponseFromApplicationError(failure.error());
+        };
+    }
 }

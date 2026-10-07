@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -68,6 +70,24 @@ public class GlobalExceptionHandler {
                 ex.getMessage() != null
                         ? ex.getMessage()
                         : LocalizedMessages.resolveOrDefault("validation.request.failed", "Request validation failed")));
+    }
+
+    /**
+     * Requests to a protected route without a valid bearer token.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResource> handleAuthentication(AuthenticationException ex) {
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.unauthorized(
+                "AUTHENTICATION_REQUIRED", "A valid bearer token is required"));
+    }
+
+    /**
+     * Requests the authenticated member is not allowed to make.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResource> handleAccessDenied(AccessDeniedException ex) {
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(ApplicationError.forbidden(
+                "ACCESS_DENIED", "The authenticated member cannot perform this operation"));
     }
 
     /**
