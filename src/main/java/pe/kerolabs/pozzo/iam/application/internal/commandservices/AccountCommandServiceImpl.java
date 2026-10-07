@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.iam.application.commandservices.AccountCommandService;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.commands.UpdateProfileCommand;
+import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.Profile;
 import pe.kerolabs.pozzo.iam.domain.repositories.AccountRepository;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -31,8 +32,11 @@ public class AccountCommandServiceImpl implements AccountCommandService {
     public Result<Account, ApplicationError> handle(UpdateProfileCommand command) {
         return accountRepository.findById(command.accountId())
                 .<Result<Account, ApplicationError>>map(account -> {
+                    var walletNumber = command.walletNumber() == null || command.walletNumber().isBlank()
+                            ? null : PhoneNumber.ofPeruvianMobile(command.walletNumber());
                     account.updateProfile(
-                            new Profile(command.displayName(), command.photoUrl(), command.theme()),
+                            new Profile(command.displayName(), command.photoUrl(), command.theme(),
+                                    walletNumber, command.backupEmail()),
                             clock.instant());
                     return Result.success(accountRepository.save(account));
                 })

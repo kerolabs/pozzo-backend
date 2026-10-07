@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A member changed the display name, photo or theme.
+ * A member changed their profile: display name, photo, theme or contact data.
  */
 public record ProfileUpdatedEvent(UUID accountId, String displayName, Instant occurredAt) {
 }

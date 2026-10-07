@@ -1,8 +1,10 @@
 package pe.kerolabs.pozzo.iam.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.Theme;
 
@@ -22,5 +24,15 @@ public record UpdateProfileResource(
 
         @Schema(description = "Visual theme", example = "DARK")
         @NotNull
-        Theme theme) {
+        Theme theme,
+
+        @Schema(description = "Nine digits of the Yape or Plin number, or null to remove it",
+                example = "999000123", nullable = true)
+        @Pattern(regexp = "9\\d{8}", message = "must have nine digits and start with 9")
+        String walletNumber,
+
+        @Schema(description = "Backup email, or null to remove it", example = "anna@ejemplo.pe", nullable = true)
+        @Email
+        @Size(max = 120)
+        String backupEmail) {
 }

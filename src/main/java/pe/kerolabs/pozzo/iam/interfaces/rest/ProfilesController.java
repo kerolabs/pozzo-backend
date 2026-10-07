@@ -62,7 +62,7 @@ public class ProfilesController {
     }
 
     @PutMapping
-    @Operation(summary = "Update my profile", description = "Changes the display name, photo and visual theme.")
+    @Operation(summary = "Update my profile", description = "Changes the display name, photo, visual theme, Yape or Plin number and backup email.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Profile updated",
                     content = @Content(schema = @Schema(implementation = ProfileResource.class))),

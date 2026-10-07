@@ -11,6 +11,7 @@ import java.util.UUID;
 public class UpdateProfileCommandFromResourceAssembler {
 
     public static UpdateProfileCommand toCommandFromResource(UUID accountId, UpdateProfileResource resource) {
-        return new UpdateProfileCommand(accountId, resource.displayName(), resource.photoUrl(), resource.theme());
+        return new UpdateProfileCommand(accountId, resource.displayName(), resource.photoUrl(), resource.theme(),
+                resource.walletNumber(), resource.backupEmail());
     }
 }

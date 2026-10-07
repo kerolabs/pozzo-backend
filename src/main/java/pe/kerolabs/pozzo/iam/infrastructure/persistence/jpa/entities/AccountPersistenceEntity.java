@@ -39,6 +39,12 @@ public class AccountPersistenceEntity extends AuditableAbstractPersistenceEntity
     @Column(name = "theme", nullable = false, length = 10)
     private Theme theme;
 
+    @Column(name = "wallet_number", length = 20)
+    private String walletNumber;
+
+    @Column(name = "backup_email", length = 120)
+    private String backupEmail;
+
     @Column(name = "terms_accepted_at", nullable = false)
     private Instant termsAcceptedAt;
 
