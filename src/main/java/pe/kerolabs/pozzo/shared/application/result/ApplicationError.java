@@ -93,6 +93,16 @@ public record ApplicationError(
     }
 
     /**
+     * Service unavailable error: an external service the operation depends on did not respond.
+     *
+     * @param code   a specific code (e.g. "SMS_DELIVERY_FAILED")
+     * @param reason a human-readable explanation
+     */
+    public static ApplicationError serviceUnavailable(String code, String reason) {
+        return new ApplicationError(ErrorType.SERVICE_UNAVAILABLE, code, "Service unavailable", reason);
+    }
+
+    /**
      * Unexpected error: something went wrong that should not have.
      */
     public static ApplicationError unexpected(String context, String reason) {

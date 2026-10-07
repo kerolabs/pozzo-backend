@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import pe.kerolabs.pozzo.shared.application.exceptions.ExternalServiceException;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
@@ -80,6 +81,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResource> handleBusinessRuleViolation(BusinessRuleViolationException ex) {
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                 ApplicationError.businessRuleViolation(ex.getCode(), ex.getMessage()));
+    }
+
+    /**
+     * Operations that failed because an external service did not respond. The cause is logged.
+     */
+    @ExceptionHandler(ExternalServiceException.class)
+    public ResponseEntity<ErrorResource> handleExternalService(ExternalServiceException ex) {
+        log.error("External service failure {}", ex.getCode(), ex);
+        return ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                ApplicationError.serviceUnavailable(ex.getCode(), ex.getMessage()));
     }
 
     /**

@@ -12,5 +12,6 @@ public enum ErrorType {
     CONFLICT,
     BUSINESS_RULE,
     TOO_MANY_REQUESTS,
+    SERVICE_UNAVAILABLE,
     UNEXPECTED
 }

@@ -49,6 +49,7 @@ public final class ErrorResponseAssembler {
             case CONFLICT -> HttpStatus.CONFLICT;
             case BUSINESS_RULE -> HttpStatus.UNPROCESSABLE_CONTENT;
             case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
+            case SERVICE_UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case UNEXPECTED -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
     }
