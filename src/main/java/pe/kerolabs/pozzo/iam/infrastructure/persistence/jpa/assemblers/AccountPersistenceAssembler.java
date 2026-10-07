@@ -18,7 +18,9 @@ public final class AccountPersistenceAssembler {
         account.restoreState(
                 entity.getId(),
                 PhoneNumber.fromE164(entity.getPhoneNumber()),
-                new Profile(entity.getDisplayName(), entity.getPhotoUrl(), entity.getTheme()),
+                new Profile(entity.getDisplayName(), entity.getPhotoUrl(), entity.getTheme(),
+                        entity.getWalletNumber() == null ? null : PhoneNumber.fromE164(entity.getWalletNumber()),
+                        entity.getBackupEmail()),
                 entity.getTermsAcceptedAt(),
                 entity.getStatus());
         return account;
@@ -33,6 +35,9 @@ public final class AccountPersistenceAssembler {
         entity.setDisplayName(account.getProfile().displayName());
         entity.setPhotoUrl(account.getProfile().photoUrl());
         entity.setTheme(account.getProfile().theme());
+        var walletNumber = account.getProfile().walletNumber();
+        entity.setWalletNumber(walletNumber == null ? null : walletNumber.e164());
+        entity.setBackupEmail(account.getProfile().backupEmail());
         entity.setTermsAcceptedAt(account.getTermsAcceptedAt());
         entity.setStatus(account.getStatus());
         return entity;

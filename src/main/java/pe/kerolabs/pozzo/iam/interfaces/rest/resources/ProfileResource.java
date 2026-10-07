@@ -23,5 +23,11 @@ public record ProfileResource(
         String photoUrl,
 
         @Schema(description = "Visual theme", example = "SYSTEM")
-        Theme theme) {
+        Theme theme,
+
+        @Schema(description = "Nine digits of the Yape or Plin number", example = "999000123", nullable = true)
+        String walletNumber,
+
+        @Schema(description = "Backup email", example = "anna@ejemplo.pe", nullable = true)
+        String backupEmail) {
 }
