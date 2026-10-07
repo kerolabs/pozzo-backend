@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
@@ -41,6 +42,11 @@ public class ContributionQueryServiceImpl implements ContributionQueryService {
     public Optional<Cycle> handle(GetCycleByGroupIdQuery query) {
         return cycleRepository.findByGroupId(query.groupId())
                 .filter(cycle -> cycle.isParticipant(query.requesterAccountId()));
+    }
+
+    @Override
+    public Optional<Cycle> handle(GetCycleByIdQuery query) {
+        return findForParticipant(query.cycleId(), query.requesterAccountId());
     }
 
     @Override

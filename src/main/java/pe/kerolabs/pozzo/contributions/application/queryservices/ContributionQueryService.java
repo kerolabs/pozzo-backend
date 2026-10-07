@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.application.queryservices;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
@@ -17,6 +18,8 @@ import java.util.Optional;
 public interface ContributionQueryService {
 
     Optional<Cycle> handle(GetCycleByGroupIdQuery query);
+
+    Optional<Cycle> handle(GetCycleByIdQuery query);
 
     /**
      * The period in progress with the state of every contribution (the pot screen).
