@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.notifications.infrastructure.persistence.jpa.repositor
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationKind;
 import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationStatus;
 import pe.kerolabs.pozzo.notifications.infrastructure.persistence.jpa.entities.NotificationPersistenceEntity;
 
@@ -19,8 +20,9 @@ public interface NotificationPersistenceRepository extends JpaRepository<Notific
     List<NotificationPersistenceEntity> findAllByStatusAndScheduledAtLessThanEqualOrderByScheduledAtAsc(
             NotificationStatus status, Instant now, Limit limit);
 
-    List<NotificationPersistenceEntity> findAllByPeriodIdAndAccountIdAndStatus(UUID periodId, UUID accountId,
-                                                                               NotificationStatus status);
+    List<NotificationPersistenceEntity> findAllByPeriodIdAndAccountIdAndKindAndStatus(UUID periodId, UUID accountId,
+                                                                                      NotificationKind kind,
+                                                                                      NotificationStatus status);
 
     boolean existsByDedupKey(String dedupKey);
 

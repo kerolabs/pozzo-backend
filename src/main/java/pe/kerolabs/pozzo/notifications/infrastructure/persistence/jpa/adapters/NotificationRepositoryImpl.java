@@ -4,6 +4,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.Notification;
 import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationContent;
+import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationKind;
 import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationStatus;
 import pe.kerolabs.pozzo.notifications.domain.repositories.NotificationRepository;
 import pe.kerolabs.pozzo.notifications.infrastructure.persistence.jpa.entities.NotificationPersistenceEntity;
@@ -34,9 +35,9 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
-    public List<Notification> findScheduledByPeriodIdAndAccountId(UUID periodId, UUID accountId) {
-        return persistenceRepository.findAllByPeriodIdAndAccountIdAndStatus(periodId, accountId,
-                        NotificationStatus.SCHEDULED).stream()
+    public List<Notification> findScheduledRemindersByPeriodIdAndAccountId(UUID periodId, UUID accountId) {
+        return persistenceRepository.findAllByPeriodIdAndAccountIdAndKindAndStatus(periodId, accountId,
+                        NotificationKind.REMINDER, NotificationStatus.SCHEDULED).stream()
                 .map(NotificationRepositoryImpl::toDomain)
                 .toList();
     }

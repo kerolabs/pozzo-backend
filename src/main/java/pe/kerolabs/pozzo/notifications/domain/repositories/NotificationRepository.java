@@ -19,7 +19,7 @@ public interface NotificationRepository {
     /**
      * Scheduled reminders of a member in a period.
      */
-    List<Notification> findScheduledByPeriodIdAndAccountId(UUID periodId, UUID accountId);
+    List<Notification> findScheduledRemindersByPeriodIdAndAccountId(UUID periodId, UUID accountId);
 
     boolean existsByDedupKey(String dedupKey);
 
