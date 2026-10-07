@@ -1,6 +1,5 @@
 package pe.kerolabs.pozzo.iam.infrastructure.verification.local;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.iam.application.internal.outboundservices.sms.SmsSender;
 import pe.kerolabs.pozzo.iam.application.internal.outboundservices.verification.VerificationCodeChannel;
@@ -10,10 +9,9 @@ import pe.kerolabs.pozzo.iam.domain.services.CodeGenerationService;
 
 /**
  * Pozzo generates the code, stores its hash and sends it with the configured {@link SmsSender}
- * (the server log or Twilio Messaging). Active unless {@code sms.provider=twilio-verify}.
+ * (the server log or SMS Gate).
  */
 @Component
-@ConditionalOnExpression("'${sms.provider:log}' != 'twilio-verify'")
 public class LocalVerificationCodeChannel implements VerificationCodeChannel {
 
     private final CodeGenerationService codeGenerationService;
