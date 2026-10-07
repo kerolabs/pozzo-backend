@@ -5,6 +5,7 @@ import pe.kerolabs.pozzo.iam.domain.model.valueobjects.SessionTokenClaims;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Issues and reads the tokens that authorize each request.
@@ -34,6 +35,17 @@ public interface TokenService {
      * Reads a registration token. Empty under the same conditions as {@link #readSessionToken(String)}.
      */
     Optional<PhoneNumber> readRegistrationToken(String token);
+
+    /**
+     * Issues a recovery token: the member proved the account with the backup email and may now link
+     * a new phone number to it.
+     */
+    String issueRecoveryToken(UUID accountId, Instant issuedAt, Instant expiresAt);
+
+    /**
+     * Reads a recovery token. Empty under the same conditions as {@link #readSessionToken(String)}.
+     */
+    Optional<UUID> readRecoveryToken(String token);
 
     /**
      * Hashes a token so the session can be found by it without storing the token itself.

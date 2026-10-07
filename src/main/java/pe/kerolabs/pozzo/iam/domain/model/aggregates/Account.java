@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.iam.domain.model.aggregates;
 
 import lombok.Getter;
 import pe.kerolabs.pozzo.iam.domain.model.events.AccountCreatedEvent;
+import pe.kerolabs.pozzo.iam.domain.model.events.PhoneNumberChangedEvent;
 import pe.kerolabs.pozzo.iam.domain.model.events.ProfileUpdatedEvent;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.AccountStatus;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
@@ -57,6 +58,19 @@ public class Account extends AbstractDomainAggregateRoot<Account> {
     public void updateProfile(Profile profile, Instant now) {
         this.profile = profile;
         registerDomainEvent(new ProfileUpdatedEvent(id, profile.displayName(), now));
+    }
+
+    /**
+     * Links the account to another verified phone number. The account keeps its id, so its groups,
+     * contributions and history stay with it.
+     *
+     * @param phoneNumber the new number, already verified with an SMS code
+     * @param recovered   true when the member recovered the account with the backup email
+     * @param now         the current time
+     */
+    public void changePhoneNumber(PhoneNumber phoneNumber, boolean recovered, Instant now) {
+        this.phoneNumber = phoneNumber;
+        registerDomainEvent(new PhoneNumberChangedEvent(id, phoneNumber.e164(), recovered, now));
     }
 
     public boolean hasAcceptedTerms() {

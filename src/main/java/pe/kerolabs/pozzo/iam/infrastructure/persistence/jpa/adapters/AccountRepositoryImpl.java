@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.adapters;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
+import pe.kerolabs.pozzo.iam.domain.model.valueobjects.AccountStatus;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
 import pe.kerolabs.pozzo.iam.domain.repositories.AccountRepository;
 import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.assemblers.AccountPersistenceAssembler;
@@ -42,6 +43,17 @@ public class AccountRepositoryImpl implements AccountRepository {
     @Override
     public boolean existsByPhoneNumber(PhoneNumber phoneNumber) {
         return persistenceRepository.existsByPhoneNumber(phoneNumber.e164());
+    }
+
+    @Override
+    public Optional<Account> findActiveByBackupEmail(String email) {
+        return persistenceRepository.findFirstByBackupEmailAndStatus(email, AccountStatus.ACTIVE)
+                .map(AccountPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public boolean isBackupEmailUsedByAnother(String email, UUID accountId) {
+        return persistenceRepository.existsByBackupEmailAndIdNot(email, accountId);
     }
 
     @Override
