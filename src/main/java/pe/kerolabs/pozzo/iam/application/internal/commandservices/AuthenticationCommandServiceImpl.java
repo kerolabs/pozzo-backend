@@ -6,8 +6,8 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.iam.application.commandservices.AuthenticatedAccount;
 import pe.kerolabs.pozzo.iam.application.commandservices.AuthenticationCommandService;
 import pe.kerolabs.pozzo.iam.application.commandservices.CodeVerification;
-import pe.kerolabs.pozzo.iam.application.internal.outboundservices.sms.SmsSender;
 import pe.kerolabs.pozzo.iam.application.internal.outboundservices.sms.TestPhoneNumbers;
+import pe.kerolabs.pozzo.iam.application.internal.outboundservices.verification.VerificationCodeChannel;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Session;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.VerificationCode;
@@ -22,6 +22,7 @@ import pe.kerolabs.pozzo.iam.domain.repositories.AccountRepository;
 import pe.kerolabs.pozzo.iam.domain.repositories.SessionRepository;
 import pe.kerolabs.pozzo.iam.domain.repositories.VerificationCodeRepository;
 import pe.kerolabs.pozzo.iam.domain.services.CodeGenerationService;
+import pe.kerolabs.pozzo.iam.domain.services.CodeMatcher;
 import pe.kerolabs.pozzo.iam.domain.services.TokenService;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
@@ -46,7 +47,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
     private final SessionRepository sessionRepository;
     private final CodeGenerationService codeGenerationService;
     private final TokenService tokenService;
-    private final SmsSender smsSender;
+    private final VerificationCodeChannel verificationCodeChannel;
     private final TestPhoneNumbers testPhoneNumbers;
     private final Clock clock;
 
@@ -55,7 +56,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
                                             SessionRepository sessionRepository,
                                             CodeGenerationService codeGenerationService,
                                             TokenService tokenService,
-                                            SmsSender smsSender,
+                                            VerificationCodeChannel verificationCodeChannel,
                                             TestPhoneNumbers testPhoneNumbers,
                                             Clock clock) {
         this.verificationCodeRepository = verificationCodeRepository;
@@ -63,7 +64,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
         this.sessionRepository = sessionRepository;
         this.codeGenerationService = codeGenerationService;
         this.tokenService = tokenService;
-        this.smsSender = smsSender;
+        this.verificationCodeChannel = verificationCodeChannel;
         this.testPhoneNumbers = testPhoneNumbers;
         this.clock = clock;
     }
@@ -85,14 +86,11 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
             verificationCodeRepository.save(pending);
         });
 
-        var fixedCode = testPhoneNumbers.fixedCodeFor(phoneNumber);
-        var code = fixedCode.orElseGet(codeGenerationService::generate);
-        var issued = verificationCodeRepository.save(
-                VerificationCode.issue(phoneNumber, codeGenerationService.hash(code), now));
-        if (fixedCode.isEmpty()) {
-            smsSender.send(phoneNumber, "Tu código de Pozzo es %s. Vence en %d minutos."
-                    .formatted(code, VerificationCode.VALIDITY.toMinutes()));
-        }
+        // Test numbers get their fixed code and no SMS; the rest go through the configured channel.
+        var storedValue = testPhoneNumbers.fixedCodeFor(phoneNumber)
+                .map(codeGenerationService::hash)
+                .orElseGet(() -> verificationCodeChannel.deliver(phoneNumber));
+        var issued = verificationCodeRepository.save(VerificationCode.issue(phoneNumber, storedValue, now));
         return Result.success(issued);
     }
 
@@ -108,7 +106,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
         }
 
         var verificationCode = pending.get();
-        var outcome = verificationCode.verify(command.code(), now, codeGenerationService);
+        var outcome = verificationCode.verify(command.code(), now, matcherFor(verificationCode));
         verificationCodeRepository.save(verificationCode);
 
         return switch (outcome) {
@@ -157,6 +155,14 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
                     return Result.success(sessionRepository.save(session));
                 })
                 .orElseGet(() -> Result.failure(ApplicationError.notFound("Session", command.sessionId().toString())));
+    }
+
+    private CodeMatcher matcherFor(VerificationCode verificationCode) {
+        var phoneNumber = verificationCode.getPhoneNumber();
+        if (testPhoneNumbers.fixedCodeFor(phoneNumber).isPresent()) {
+            return input -> codeGenerationService.matches(input, verificationCode.getCodeHash());
+        }
+        return input -> verificationCodeChannel.check(phoneNumber, input, verificationCode.getCodeHash());
     }
 
     private Result<CodeVerification, ApplicationError> signInOrAskForRegistration(

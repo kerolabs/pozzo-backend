@@ -6,7 +6,7 @@ import pe.kerolabs.pozzo.iam.domain.model.events.CodeVerifiedEvent;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.VerificationOutcome;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.VerificationStatus;
-import pe.kerolabs.pozzo.iam.domain.services.CodeGenerationService;
+import pe.kerolabs.pozzo.iam.domain.services.CodeMatcher;
 import pe.kerolabs.pozzo.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
 import java.time.Duration;
@@ -43,7 +43,8 @@ public class VerificationCode extends AbstractDomainAggregateRoot<VerificationCo
      * Issues a code for a phone number.
      *
      * @param phoneNumber the number the code is sent to
-     * @param codeHash    the hash of the code; the code itself is never stored
+     * @param codeHash    the hash of the code, or a marker when an external service keeps the code;
+     *                    the code itself is never stored
      * @param now         the current time
      * @return the new pending code
      */
@@ -64,12 +65,12 @@ public class VerificationCode extends AbstractDomainAggregateRoot<VerificationCo
      * Checks the code typed by the member. A wrong code uses up one attempt; the third wrong
      * attempt blocks the code, and a new one has to be requested.
      *
-     * @param input       the code typed by the member
-     * @param now         the current time
-     * @param codeService compares the input with the stored hash
+     * @param input   the code typed by the member
+     * @param now     the current time
+     * @param matcher decides whether the input is the code that was sent
      * @return the outcome of the attempt
      */
-    public VerificationOutcome verify(String input, Instant now, CodeGenerationService codeService) {
+    public VerificationOutcome verify(String input, Instant now, CodeMatcher matcher) {
         if (status == VerificationStatus.BLOCKED) {
             return VerificationOutcome.BLOCKED;
         }
@@ -80,7 +81,7 @@ public class VerificationCode extends AbstractDomainAggregateRoot<VerificationCo
             status = VerificationStatus.EXPIRED;
             return VerificationOutcome.EXPIRED;
         }
-        if (codeService.matches(input, codeHash)) {
+        if (matcher.matches(input)) {
             status = VerificationStatus.VERIFIED;
             registerDomainEvent(new CodeVerifiedEvent(id, phoneNumber.e164(), now));
             return VerificationOutcome.VERIFIED;
