@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.iam.application.commandservices.AuthenticatedAccount;
 import pe.kerolabs.pozzo.iam.application.commandservices.AuthenticationCommandService;
 import pe.kerolabs.pozzo.iam.application.commandservices.CodeVerification;
 import pe.kerolabs.pozzo.iam.application.internal.outboundservices.sms.SmsSender;
+import pe.kerolabs.pozzo.iam.application.internal.outboundservices.sms.TestPhoneNumbers;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Session;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.VerificationCode;
@@ -46,6 +47,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
     private final CodeGenerationService codeGenerationService;
     private final TokenService tokenService;
     private final SmsSender smsSender;
+    private final TestPhoneNumbers testPhoneNumbers;
     private final Clock clock;
 
     public AuthenticationCommandServiceImpl(VerificationCodeRepository verificationCodeRepository,
@@ -54,6 +56,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
                                             CodeGenerationService codeGenerationService,
                                             TokenService tokenService,
                                             SmsSender smsSender,
+                                            TestPhoneNumbers testPhoneNumbers,
                                             Clock clock) {
         this.verificationCodeRepository = verificationCodeRepository;
         this.accountRepository = accountRepository;
@@ -61,6 +64,7 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
         this.codeGenerationService = codeGenerationService;
         this.tokenService = tokenService;
         this.smsSender = smsSender;
+        this.testPhoneNumbers = testPhoneNumbers;
         this.clock = clock;
     }
 
@@ -81,11 +85,14 @@ public class AuthenticationCommandServiceImpl implements AuthenticationCommandSe
             verificationCodeRepository.save(pending);
         });
 
-        var code = codeGenerationService.generate();
+        var fixedCode = testPhoneNumbers.fixedCodeFor(phoneNumber);
+        var code = fixedCode.orElseGet(codeGenerationService::generate);
         var issued = verificationCodeRepository.save(
                 VerificationCode.issue(phoneNumber, codeGenerationService.hash(code), now));
-        smsSender.send(phoneNumber, "Tu código de Pozzo es %s. Vence en %d minutos."
-                .formatted(code, VerificationCode.VALIDITY.toMinutes()));
+        if (fixedCode.isEmpty()) {
+            smsSender.send(phoneNumber, "Tu código de Pozzo es %s. Vence en %d minutos."
+                    .formatted(code, VerificationCode.VALIDITY.toMinutes()));
+        }
         return Result.success(issued);
     }
 
