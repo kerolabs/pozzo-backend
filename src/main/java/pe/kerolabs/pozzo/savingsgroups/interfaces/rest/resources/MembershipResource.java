@@ -22,5 +22,7 @@ public record MembershipResource(
                 nullable = true) String phoneNumber,
         @Schema(description = "Turn of the member, once assigned", nullable = true) Integer turnNumber,
         @Schema(description = "When the member joined") Instant joinedAt,
-        @Schema(description = "Profile photo of a member who uses the application", nullable = true) String photoUrl) {
+        @Schema(description = "Profile photo of a member who uses the application", nullable = true) String photoUrl,
+        @Schema(description = "Account of a member who uses the application, to ask for their compliance summary",
+                nullable = true) UUID accountId) {
 }

@@ -5,10 +5,12 @@ import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupCreatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberRemovedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
@@ -105,6 +107,17 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         return memberships.stream().filter(Membership::isActive).toList();
     }
 
+    /**
+     * The accounts of the active members who use the application, without the organizer: who hears about
+     * what the organizer does.
+     */
+    public List<UUID> otherMemberAccountIds() {
+        return activeMemberships().stream()
+                .map(Membership::getMemberId)
+                .filter(memberId -> memberId != null && !memberId.equals(organizerId))
+                .toList();
+    }
+
     public int activeMembersCount() {
         return activeMemberships().size();
     }
@@ -157,7 +170,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
      * Replaces the rules. Changing the number of members discards the turns, because they no longer
      * cover the whole group.
      */
-    public void updateRules(String name, GroupRules newRules) {
+    public void updateRules(String name, GroupRules newRules, Instant now) {
         requireNotStarted();
         if (newRules.seats() < activeMembersCount()) {
             throw new BusinessRuleViolationException("SEATS_BELOW_MEMBERS",
@@ -166,15 +179,28 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         if (newRules.seats() != rules.seats()) {
             clearTurns();
         }
-        this.name = requireName(name);
+        var newName = requireName(name);
+        var changed = !newName.equals(this.name) || !newRules.equals(rules);
+        var wasFull = isFull();
+        this.name = newName;
         this.rules = newRules;
         refreshReadiness();
+        if (changed) {
+            registerDomainEvent(new RulesUpdatedEvent(id, now));
+        }
+        if (!wasFull) {
+            announceIfFull(now);
+        }
     }
 
-    public void defineDestination(Destination destination) {
+    public void defineDestination(Destination destination, Instant now) {
         requireNotStarted();
+        var changed = !destination.equals(rules.destination());
         this.rules = rules.withDestination(destination);
         refreshReadiness();
+        if (changed) {
+            registerDomainEvent(new RulesUpdatedEvent(id, now));
+        }
     }
 
     /**
@@ -200,6 +226,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         }
         registerDomainEvent(new MemberJoinedEvent(id, membership.getId(), memberId, now));
         refreshReadiness();
+        announceIfFull(now);
         return membership;
     }
 
@@ -213,6 +240,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         memberships.add(membership);
         registerDomainEvent(new ManualMemberAddedEvent(id, membership.getId(), membership.getDisplayName(), now));
         refreshReadiness();
+        announceIfFull(now);
         return membership;
     }
 
@@ -285,11 +313,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
      */
     public void delete(Instant now) {
         requireNotStarted();
-        var memberAccountIds = activeMemberships().stream()
-                .map(Membership::getMemberId)
-                .filter(memberId -> memberId != null && !memberId.equals(organizerId))
-                .toList();
-        registerDomainEvent(new GroupDeletedEvent(id, name, organizerId, memberAccountIds, now));
+        registerDomainEvent(new GroupDeletedEvent(id, name, organizerId, otherMemberAccountIds(), now));
     }
 
     /**
@@ -372,6 +396,12 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         if (!everyMemberOnce || !consecutiveNumbers) {
             throw new BusinessRuleViolationException("INVALID_TURN_ORDER",
                     "Every member must get exactly one turn, numbered from 1 to the number of members");
+        }
+    }
+
+    private void announceIfFull(Instant now) {
+        if (isFull()) {
+            registerDomainEvent(new GroupFilledEvent(id, now));
         }
     }
 

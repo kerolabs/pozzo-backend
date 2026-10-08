@@ -34,7 +34,8 @@ public class MembershipResourceFromEntityAssembler {
                                 : null,
                         group.turnOf(membership.getId()).map(TurnSlot::turnNumber).orElse(null),
                         membership.getJoinedAt(),
-                        membership.getMemberId() == null ? null : photosByAccount.get(membership.getMemberId())))
+                        membership.getMemberId() == null ? null : photosByAccount.get(membership.getMemberId()),
+                        membership.getMemberId()))
                 .toList();
     }
 }
