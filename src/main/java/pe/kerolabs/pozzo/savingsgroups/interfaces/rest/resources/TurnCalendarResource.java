@@ -29,6 +29,7 @@ public record TurnCalendarResource(
             @Schema(description = "Membership that collects") UUID membershipId,
             @Schema(description = "Name of the member", example = "Rosa Medina") String displayName,
             @Schema(description = "Cutoff date of the period", example = "2026-11-05") LocalDate cutoffDate,
-            @Schema(description = "True for the requester's turn") boolean me) {
+            @Schema(description = "True for the requester's turn") boolean me,
+            @Schema(description = "Profile photo of the member who collects", nullable = true) String photoUrl) {
     }
 }

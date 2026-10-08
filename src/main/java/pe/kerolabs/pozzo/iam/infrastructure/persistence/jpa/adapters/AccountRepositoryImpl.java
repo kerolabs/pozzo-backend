@@ -10,6 +10,8 @@ import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.assemblers.AccountPe
 import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.entities.AccountPersistenceEntity;
 import pe.kerolabs.pozzo.iam.infrastructure.persistence.jpa.repositories.AccountPersistenceRepository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +40,13 @@ public class AccountRepositoryImpl implements AccountRepository {
     public Optional<Account> findByPhoneNumber(PhoneNumber phoneNumber) {
         return persistenceRepository.findByPhoneNumber(phoneNumber.e164())
                 .map(AccountPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
+    public List<Account> findAllByIds(Collection<UUID> ids) {
+        return persistenceRepository.findAllById(ids).stream()
+                .map(AccountPersistenceAssembler::toDomainFromPersistence)
+                .toList();
     }
 
     @Override

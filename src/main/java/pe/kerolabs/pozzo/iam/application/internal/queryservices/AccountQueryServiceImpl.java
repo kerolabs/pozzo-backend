@@ -5,6 +5,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.iam.application.queryservices.AccountQueryService;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.queries.GetAccountByPhoneQuery;
+import pe.kerolabs.pozzo.iam.domain.model.queries.GetAccountsQuery;
 import pe.kerolabs.pozzo.iam.domain.model.queries.GetProfileQuery;
 import pe.kerolabs.pozzo.iam.domain.model.queries.ValidateTokenQuery;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.SessionTokenClaims;
@@ -13,6 +14,7 @@ import pe.kerolabs.pozzo.iam.domain.repositories.SessionRepository;
 import pe.kerolabs.pozzo.iam.domain.services.TokenService;
 
 import java.time.Clock;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,6 +40,11 @@ public class AccountQueryServiceImpl implements AccountQueryService {
     @Override
     public Optional<Account> handle(GetProfileQuery query) {
         return accountRepository.findById(query.accountId());
+    }
+
+    @Override
+    public List<Account> handle(GetAccountsQuery query) {
+        return query.accountIds().isEmpty() ? List.of() : accountRepository.findAllByIds(query.accountIds());
     }
 
     @Override
