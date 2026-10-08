@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,11 +20,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.notifications.application.commandservices.NotificationCommandService;
+import pe.kerolabs.pozzo.notifications.domain.model.aggregates.Device;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.DeactivateDeviceCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.RegisterDeviceCommand;
 import pe.kerolabs.pozzo.notifications.interfaces.rest.resources.DeviceResource;
 import pe.kerolabs.pozzo.notifications.interfaces.rest.resources.RegisterDeviceResource;
 import pe.kerolabs.pozzo.notifications.interfaces.rest.transform.NotificationResourceAssembler;
+import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
+import pe.kerolabs.pozzo.shared.application.result.Result;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
@@ -54,10 +58,23 @@ public class DevicesController {
     })
     public ResponseEntity<?> registerDevice(@AuthenticationPrincipal AuthenticatedMember member,
                                             @Valid @RequestBody RegisterDeviceResource resource) {
-        var result = notificationCommandService.handle(
-                new RegisterDeviceCommand(member.accountId(), resource.pushToken(), resource.platform()));
+        var command = new RegisterDeviceCommand(member.accountId(), resource.pushToken(), resource.platform());
+        var result = registerOnce(command);
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
                 NotificationResourceAssembler::toResourceFromDevice, HttpStatus.CREATED);
+    }
+
+    /**
+     * The app may register the same token twice at once (the session opens and Firebase hands the token at the
+     * same moment): both find no device and both insert, and the second breaks the unique token. That one is
+     * retried in a new transaction, where it finds the device the first one saved and updates it.
+     */
+    private Result<Device, ApplicationError> registerOnce(RegisterDeviceCommand command) {
+        try {
+            return notificationCommandService.handle(command);
+        } catch (DataIntegrityViolationException concurrentRegistration) {
+            return notificationCommandService.handle(command);
+        }
     }
 
     @DeleteMapping("/{deviceId}")
