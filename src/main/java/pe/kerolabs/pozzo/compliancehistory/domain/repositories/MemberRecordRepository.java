@@ -10,6 +10,9 @@ import java.util.UUID;
  */
 public interface MemberRecordRepository {
 
+    /**
+     * Finds the record of a member; empty when no fact was recorded for the account yet.
+     */
     Optional<MemberRecord> findByAccountId(UUID accountId);
 
     /**
@@ -17,5 +20,8 @@ public interface MemberRecordRepository {
      */
     boolean existsEntryBySourceEventId(String sourceEventId);
 
+    /**
+     * Creates or updates the record with its entries and returns the stored state.
+     */
     MemberRecord save(MemberRecord record);
 }
