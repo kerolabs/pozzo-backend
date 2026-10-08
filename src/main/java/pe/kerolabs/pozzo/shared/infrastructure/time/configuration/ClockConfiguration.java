@@ -12,6 +12,12 @@ import java.time.Clock;
 @Configuration
 public class ClockConfiguration {
 
+    /**
+     * Exposes a system UTC {@link Clock} bean for consistent application time queries.
+     * Can be replaced by fixed clocks in unit and integration test configurations.
+     *
+     * @return the application's root {@link Clock} bean
+     */
     @Bean
     public Clock clock() {
         return Clock.systemUTC();

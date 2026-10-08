@@ -17,6 +17,12 @@ public class LocaleConfiguration {
 
     private static final Locale SPANISH = Locale.forLanguageTag("es");
 
+    /**
+     * Configures the default HTTP request {@link LocaleResolver} based on the Accept-Language header.
+     * Sets Spanish (es) as default locale with English (en) as fallback option.
+     *
+     * @return the configured {@link AcceptHeaderLocaleResolver} instance
+     */
     @Bean
     public LocaleResolver localeResolver() {
         var resolver = new AcceptHeaderLocaleResolver();

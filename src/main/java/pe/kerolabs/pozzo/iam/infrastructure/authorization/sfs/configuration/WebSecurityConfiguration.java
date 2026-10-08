@@ -48,6 +48,16 @@ public class WebSecurityConfiguration {
         this.unauthorizedRequestHandler = unauthorizedRequestHandler;
     }
 
+    /**
+     * Configures the Spring Security filter chain for the REST API.
+     * Enforces stateless session management, permissive CORS for multi-client access,
+     * CSRF/HTTP Basic disabled, public endpoints for Swagger/health/auth,
+     * and custom {@link BearerAuthorizationRequestFilter} for token authentication.
+     *
+     * @param http the {@link HttpSecurity} builder
+     * @return the configured {@link SecurityFilterChain}
+     * @throws Exception if security configuration fails
+     */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(request -> {
