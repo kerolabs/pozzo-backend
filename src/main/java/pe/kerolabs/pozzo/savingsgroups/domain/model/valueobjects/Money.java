@@ -26,6 +26,9 @@ public record Money(BigDecimal amount, String currency) {
         amount = amount.setScale(2, RoundingMode.UNNECESSARY);
     }
 
+    /**
+     * Creates a monetary value expressed in Peruvian soles (PEN).
+     */
     public static Money soles(BigDecimal amount) {
         return new Money(amount, PEN);
     }
