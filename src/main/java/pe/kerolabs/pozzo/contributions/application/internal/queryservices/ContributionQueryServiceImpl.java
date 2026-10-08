@@ -11,11 +11,15 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQue
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
 import pe.kerolabs.pozzo.contributions.domain.repositories.ContributionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.PeriodRepository;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,15 +31,21 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ContributionQueryServiceImpl implements ContributionQueryService {
 
+    /** Long enough to open the image, short enough that a copied link soon stops working. */
+    private static final Duration RECEIPT_LINK_VALIDITY = Duration.ofMinutes(15);
+
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ContributionRepository contributionRepository;
+    private final ReceiptImageStorage receiptImageStorage;
 
     public ContributionQueryServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository,
-                                        ContributionRepository contributionRepository) {
+                                        ContributionRepository contributionRepository,
+                                        ReceiptImageStorage receiptImageStorage) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
         this.contributionRepository = contributionRepository;
+        this.receiptImageStorage = receiptImageStorage;
     }
 
     @Override
@@ -89,6 +99,18 @@ public class ContributionQueryServiceImpl implements ContributionQueryService {
                                 contributionRepository.findAllByPeriodId(period.getId()).stream()
                                         .filter(Contribution::isUnderReview)
                                         .toList())));
+    }
+
+    @Override
+    public Optional<ReceiptImageLink> handle(GetReceiptImageQuery query) {
+        var requester = query.requesterAccountId();
+        return contributionRepository.findById(query.contributionId())
+                .filter(Contribution::hasReceiptImage)
+                .filter(contribution -> requester.equals(contribution.getAccountId())
+                        || findForParticipant(contribution.getCycleId(), requester)
+                        .filter(cycle -> cycle.isOrganizer(requester))
+                        .isPresent())
+                .map(contribution -> receiptImageStorage.link(contribution.getReceiptImagePath(), RECEIPT_LINK_VALIDITY));
     }
 
     private Optional<Cycle> findForParticipant(UUID cycleId, UUID requesterAccountId) {

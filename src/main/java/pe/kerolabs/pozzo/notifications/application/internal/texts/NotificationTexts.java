@@ -81,6 +81,22 @@ public final class NotificationTexts {
         return content("Nuevo integrante", body, "pozzo://groups/%s/detail".formatted(groupId));
     }
 
+    public static NotificationContent rulesUpdated(String groupName, BigDecimal amount, String periodicity, int seats,
+                                                   UUID groupId) {
+        var every = switch (periodicity) {
+            case "WEEKLY" -> "semanal";
+            case "BIWEEKLY" -> "quincenal";
+            default -> "mensual";
+        };
+        return content("Cambiaron las reglas", "La cabeza actualizó %s: aporte %s %s, %d integrantes."
+                .formatted(groupName, every, money(amount), seats), "pozzo://groups/%s/detail".formatted(groupId));
+    }
+
+    public static NotificationContent groupFilled(String groupName, UUID groupId) {
+        return content("Junta completa", "%s ya tiene a todos sus integrantes. Falta que la cabeza asigne los turnos."
+                .formatted(groupName), "pozzo://groups/%s/detail".formatted(groupId));
+    }
+
     public static NotificationContent groupDeleted(String groupName) {
         return content("Junta eliminada", "La cabeza eliminó %s antes de iniciarla.".formatted(groupName),
                 "pozzo://groups");

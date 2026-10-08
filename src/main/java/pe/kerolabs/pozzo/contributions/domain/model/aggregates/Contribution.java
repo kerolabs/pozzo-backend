@@ -47,6 +47,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
     private UUID registeredByAccountId;
     private @Nullable Review review;
     private Instant registeredAt;
+    private @Nullable String receiptImagePath;
 
     public Contribution() {
     }
@@ -152,6 +153,22 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         registerDomainEvent(new ContributionRejectedEvent(id, cycleId, periodId, membershipId, now));
     }
 
+    /**
+     * Keeps where the image of the receipt is stored. Only a transfer has a receipt; a new image replaces
+     * the previous one.
+     */
+    public void attachReceiptImage(String path) {
+        if (method != ContributionMethod.TRANSFER) {
+            throw new BusinessRuleViolationException("RECEIPT_IMAGE_NOT_ALLOWED",
+                    "Only a contribution made by transfer has a receipt image");
+        }
+        this.receiptImagePath = path;
+    }
+
+    public boolean hasReceiptImage() {
+        return receiptImagePath != null;
+    }
+
     public List<Inconsistency> getInconsistencies() {
         return Collections.unmodifiableList(inconsistencies);
     }
@@ -163,7 +180,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
                              Money amount, ContributionMethod method, ContributionStatus status,
                              @Nullable PaymentReceipt receipt, List<Inconsistency> inconsistencies,
                              @Nullable UUID coveredByMembershipId, UUID registeredByAccountId,
-                             @Nullable Review review, Instant registeredAt) {
+                             @Nullable Review review, Instant registeredAt, @Nullable String receiptImagePath) {
         this.id = id;
         this.cycleId = cycleId;
         this.periodId = periodId;
@@ -178,6 +195,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         this.registeredByAccountId = registeredByAccountId;
         this.review = review;
         this.registeredAt = registeredAt;
+        this.receiptImagePath = receiptImagePath;
     }
 
     private void requireUnderReview() {

@@ -87,7 +87,7 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
                 .map(group -> {
                     var rules = new GroupRules(Money.soles(command.contributionAmount()), command.periodicity(),
                             command.seats(), command.firstContributionDate(), group.getRules().destination());
-                    group.updateRules(command.name(), rules);
+                    group.updateRules(command.name(), rules, clock.instant());
                     return savingsGroupRepository.save(group);
                 });
     }
@@ -96,7 +96,7 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
     public Result<SavingsGroup, ApplicationError> handle(DefineDestinationCommand command) {
         return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
                 .map(group -> {
-                    group.defineDestination(Destination.of(command.method(), command.phoneNumber()));
+                    group.defineDestination(Destination.of(command.method(), command.phoneNumber()), clock.instant());
                     return savingsGroupRepository.save(group);
                 });
     }

@@ -5,13 +5,18 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.repositories.SavingsGroupRepository;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupDeletedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupFilledIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberJoinedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupRulesUpdatedIntegrationEvent;
 
 /**
- * Translates the joins and the deletion of a group into integration events for the other contexts.
+ * Translates the joins, the changes of rules, a full group and the deletion of a group into integration
+ * events for the other contexts.
  */
 @Component
 public class MembershipEventsHandler {
@@ -41,6 +46,28 @@ public class MembershipEventsHandler {
                     group.getRules().seats(),
                     event.occurredAt()));
         });
+    }
+
+    @EventListener
+    public void on(RulesUpdatedEvent event) {
+        savingsGroupRepository.findById(event.groupId()).ifPresent(group -> {
+            var rules = group.getRules();
+            eventPublisher.publishEvent(new SavingsGroupRulesUpdatedIntegrationEvent(
+                    group.getId(),
+                    group.getName(),
+                    group.otherMemberAccountIds(),
+                    rules.contribution().amount(),
+                    rules.periodicity().name(),
+                    rules.seats(),
+                    event.occurredAt()));
+        });
+    }
+
+    @EventListener
+    public void on(GroupFilledEvent event) {
+        savingsGroupRepository.findById(event.groupId()).ifPresent(group ->
+                eventPublisher.publishEvent(new SavingsGroupFilledIntegrationEvent(
+                        group.getId(), group.getName(), group.otherMemberAccountIds(), event.occurredAt())));
     }
 
     @EventListener

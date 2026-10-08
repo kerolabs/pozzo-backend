@@ -6,6 +6,8 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQue
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
 
 import java.util.List;
@@ -40,4 +42,10 @@ public interface ContributionQueryService {
      * The contributions of a period that wait for review; only for the organizer.
      */
     Optional<PeriodView> handle(GetPendingReviewsQuery query);
+
+    /**
+     * A temporary link to the receipt image of a contribution, for the member it counts for or the
+     * organizer; empty when the requester may not see it or there is no image.
+     */
+    Optional<ReceiptImageLink> handle(GetReceiptImageQuery query);
 }
