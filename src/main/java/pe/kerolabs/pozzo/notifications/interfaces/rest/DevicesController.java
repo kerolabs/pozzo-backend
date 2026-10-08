@@ -47,6 +47,14 @@ public class DevicesController {
         this.notificationCommandService = notificationCommandService;
     }
 
+    /**
+     * Registers a device push token (Firebase Cloud Messaging) for the authenticated member.
+     * Moves existing registration to the requester if token was previously registered.
+     *
+     * @param member the authenticated member registering their device
+     * @param resource payload containing FCM push token and mobile platform (Android / iOS)
+     * @return 201 Created with registered device details, or error status
+     */
     @PostMapping
     @Operation(summary = "Register my phone",
             description = "Registers the Firebase token of the phone. A token already registered moves to the requester.")
@@ -77,6 +85,13 @@ public class DevicesController {
         }
     }
 
+    /**
+     * Deactivates a registered device to stop sending push notifications to it.
+     *
+     * @param member the authenticated member who owns the device
+     * @param deviceId the identifier of the registered device
+     * @return 204 No Content on successful deactivation, or 404 if not found
+     */
     @DeleteMapping("/{deviceId}")
     @Operation(summary = "Remove my phone", description = "The phone stops receiving push notifications.")
     @ApiResponses({

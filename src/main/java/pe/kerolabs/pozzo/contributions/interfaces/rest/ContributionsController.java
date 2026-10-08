@@ -64,6 +64,15 @@ public class ContributionsController {
         this.contributionQueryService = contributionQueryService;
     }
 
+    /**
+     * Registers a member's regular contribution for a specific period with receipt information.
+     * Automatically validates if the details match; otherwise flags as inconsistent for organizer review.
+     *
+     * @param member the authenticated member registering their contribution
+     * @param periodId the identifier of the period
+     * @param resource payload containing payment proof details (amount, reference, date, payment method)
+     * @return 201 Created with contribution details, or error status
+     */
     @PostMapping("/periods/{periodId}/contributions")
     @Operation(summary = "Register my contribution",
             description = "With the data read from the receipt. A receipt that matches the amount, the recipient "
@@ -87,6 +96,15 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.CREATED);
     }
 
+    /**
+     * Registers a direct cash contribution on behalf of any group member.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param periodId the identifier of the period
+     * @param resource payload containing contributor identifier and payment details
+     * @return 201 Created with contribution details, or error status
+     */
     @PostMapping("/periods/{periodId}/contributions/cash")
     @Operation(summary = "Register a cash contribution", description = "Only the organizer, for any member.")
     @ApiResponses({
@@ -105,6 +123,15 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.CREATED);
     }
 
+    /**
+     * Registers a coverage payment where one member covers the payment for another member.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param periodId the identifier of the period
+     * @param resource payload containing covering member and covered member identifiers
+     * @return 201 Created with contribution details, or error status
+     */
     @PostMapping("/periods/{periodId}/contributions/coverage")
     @Operation(summary = "Register a coverage",
             description = "Only the organizer: a member puts the money of another member, who then owes it.")
@@ -124,6 +151,15 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.CREATED);
     }
 
+    /**
+     * Reviews a pending or inconsistent contribution to approve or reject it.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param contributionId the identifier of the contribution being reviewed
+     * @param resource review decision (approve or reject with reason)
+     * @return 200 OK with updated contribution status
+     */
     @PatchMapping("/contributions/{contributionId}/review")
     @Operation(summary = "Review a contribution",
             description = "Only the organizer. Approving settles the member's contribution; rejecting lets the "
@@ -146,6 +182,16 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
     }
 
+    /**
+     * Attaches an image file of the payment receipt to an existing contribution.
+     * Only permitted for the member who registered the contribution.
+     *
+     * @param member the authenticated member who created the contribution
+     * @param contributionId the identifier of the contribution
+     * @param image multipart binary image file (JPEG, PNG, WebP up to 2MB)
+     * @return 200 OK with updated contribution details
+     * @throws IOException if binary reading of the uploaded image fails
+     */
     @PutMapping(value = "/contributions/{contributionId}/receipt-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Keep the image of my receipt",
             description = "Stores a JPEG, PNG or WebP image of up to 2 MB in a private storage, so the member and "
@@ -170,6 +216,14 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
     }
 
+    /**
+     * Retrieves a temporary signed URL to view a stored receipt image.
+     * Accessible by the contributing member or the group organizer.
+     *
+     * @param member the authenticated member making the request
+     * @param contributionId the identifier of the contribution
+     * @return 200 OK with temporary signed URL and expiration timestamp
+     */
     @GetMapping("/contributions/{contributionId}/receipt-image")
     @Operation(summary = "See the image of a receipt",
             description = "A signed link that works for 15 minutes. Only the member the contribution counts for "
@@ -190,6 +244,14 @@ public class ContributionsController {
                         ApplicationError.notFound("ReceiptImage", contributionId.toString())));
     }
 
+    /**
+     * Lists all contributions pending review for a given period.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param periodId the identifier of the period
+     * @return list of contributions waiting for organizer review
+     */
     @GetMapping("/periods/{periodId}/contributions/pending-review")
     @Operation(summary = "List the contributions to review", description = "Only the organizer.")
     @ApiResponses({
@@ -199,7 +261,7 @@ public class ContributionsController {
                     content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
     public ResponseEntity<?> getPendingReviews(@AuthenticationPrincipal AuthenticatedMember member,
-                                               @PathVariable UUID periodId) {
+                                                @PathVariable UUID periodId) {
         return contributionQueryService.handle(new GetPendingReviewsQuery(periodId, member.accountId()))
                 .<ResponseEntity<?>>map(view -> ResponseEntity.ok(view.contributions().stream()
                         .map(contribution -> ContributionResourceFromEntityAssembler.toResourceFromEntity(

@@ -23,35 +23,83 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
  */
 public interface SavingsGroupCommandService {
 
+    /**
+     * Creates a new savings group with initial rules, designating the creator as organizer.
+     *
+     * @param command command containing organizer account ID, title, rules, and optional description
+     * @return the created savings group aggregate, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(CreateGroupCommand command);
 
+    /**
+     * Updates the rules of an unstarted savings group (e.g. contribution amount, frequency).
+     *
+     * @param command command containing group ID, organizer account ID, and new rules
+     * @return the updated savings group aggregate, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(UpdateRulesCommand command);
 
+    /**
+     * Defines the destination bank account or payment method for group contributions.
+     *
+     * @param command command containing group ID, organizer account ID, and payment destination details
+     * @return the updated savings group aggregate, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(DefineDestinationCommand command);
 
     /**
-     * Generates a new invitation and expires the previous one.
+     * Generates a new invitation and expires any previously active invitation for the group.
+     *
+     * @param command command containing group ID and organizer account ID
+     * @return the created invitation aggregate, or an error
      */
     Result<Invitation, ApplicationError> handle(GenerateInvitationCommand command);
 
+    /**
+     * Enrolls an authenticated member into the savings group using an invitation code.
+     *
+     * @param command command containing invitation code and member account ID
+     * @return the joined savings group aggregate, or an error if full, expired, or started
+     */
     Result<SavingsGroup, ApplicationError> handle(JoinGroupCommand command);
 
+    /**
+     * Registers an offline/manual participant into the group without mobile app access.
+     *
+     * @param command command containing group ID, organizer account ID, and manual member info
+     * @return the updated savings group aggregate, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(AddManualMemberCommand command);
 
+    /**
+     * Removes an enrolled member or manual placeholder from the group prior to start.
+     *
+     * @param command command containing group ID, organizer account ID, and membership ID
+     * @return the updated savings group aggregate, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(RemoveMemberCommand command);
 
     /**
-     * Starts the group and expires its invitation.
+     * Starts the group, locks the roster, expires pending invitations, and readies contribution cycles.
+     *
+     * @param command command containing group ID and organizer account ID
+     * @return the started savings group aggregate, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(StartGroupCommand command);
 
     /**
      * Deletes a group that has not started, with its members and invitations, and returns it as it was.
+     *
+     * @param command command containing group ID and organizer account ID
+     * @return the deleted savings group state, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(DeleteGroupCommand command);
 
     /**
-     * Closes the group when Contributions reports that its cycle is over.
+     * Closes the group when Contributions reports that its financial cycle is completed.
+     *
+     * @param command command containing group ID
+     * @return the closed savings group aggregate, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(CloseGroupCommand command);
 }

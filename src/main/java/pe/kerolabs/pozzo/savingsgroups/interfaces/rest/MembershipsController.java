@@ -71,6 +71,14 @@ public class MembershipsController {
         this.externalIamService = externalIamService;
     }
 
+    /**
+     * Generates a new unique invitation code and share link for the group.
+     * Invalidates any previously active invitation code. Only permitted for the organizer before start.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @return 201 Created with invitation code, URL, and expiration
+     */
     @PostMapping("/groups/{groupId}/invitations")
     @Operation(summary = "Generate an invitation", description = "Only the organizer. The previous invitation expires.")
     @ApiResponses({
@@ -92,6 +100,14 @@ public class MembershipsController {
                 HttpStatus.CREATED);
     }
 
+    /**
+     * Retrieves the active invitation code for the group.
+     * Only permitted for the organizer.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with active invitation details, or 404 if not found
+     */
     @GetMapping("/groups/{groupId}/invitations/active")
     @Operation(summary = "Get the active invitation", description = "Only the organizer.")
     @ApiResponses({
@@ -110,6 +126,13 @@ public class MembershipsController {
                         ApplicationError.notFound("Invitation", groupId.toString())));
     }
 
+    /**
+     * Previews group basic information prior to joining, using an invitation code.
+     * Publicly accessible without exposing member roster.
+     *
+     * @param code the invitation code
+     * @return 200 OK with preview metadata (name, rules, seat availability), or error status
+     */
     @GetMapping("/invitations/{code}")
     @Operation(summary = "Preview a group before joining",
             description = "Shows the name, organizer, rules and free seats, without the member list.")
@@ -129,6 +152,13 @@ public class MembershipsController {
                         ApplicationError.notFound("Invitation", code)));
     }
 
+    /**
+     * Enrolls the authenticated member into the savings group using a valid invitation code.
+     *
+     * @param member the authenticated member joining the group
+     * @param code the invitation code
+     * @return 200 OK with joined group resource, or error status
+     */
     @PostMapping("/invitations/{code}/join")
     @Operation(summary = "Join a group with an invitation code")
     @ApiResponses({
@@ -148,6 +178,14 @@ public class MembershipsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Lists all members enrolled in the savings group.
+     * Accessible by enrolled group members; organizer is listed first.
+     *
+     * @param member the authenticated group member making the request
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with list of group memberships
+     */
     @GetMapping("/groups/{groupId}/members")
     @Operation(summary = "List the members", description = "Only for members of the group; the organizer comes first.")
     @ApiResponses({
@@ -166,6 +204,15 @@ public class MembershipsController {
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }
 
+    /**
+     * Registers an offline/manual participant into the group without requiring mobile app login.
+     * The organizer manages contributions on behalf of manual members.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param resource payload containing manual member name and phone details
+     * @return 201 Created with updated member roster
+     */
     @PostMapping("/groups/{groupId}/members/manual")
     @Operation(summary = "Register a member without the application",
             description = "Only the organizer, who then records that member's contributions.")
@@ -188,6 +235,15 @@ public class MembershipsController {
                 HttpStatus.CREATED);
     }
 
+    /**
+     * Removes an enrolled member or manual participant from the savings group prior to start.
+     * Only permitted for the organizer.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param membershipId the identifier of the membership to remove
+     * @return 204 No Content on successful removal
+     */
     @DeleteMapping("/groups/{groupId}/members/{membershipId}")
     @Operation(summary = "Remove a member", description = "Only the organizer, and only before the group starts.")
     @ApiResponses({

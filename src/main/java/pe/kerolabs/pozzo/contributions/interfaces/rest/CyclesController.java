@@ -54,6 +54,13 @@ public class CyclesController {
         this.clock = clock;
     }
 
+    /**
+     * Retrieves the financial cycle associated with an active savings group.
+     *
+     * @param member the authenticated member making the request (must belong to group)
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with cycle details, or 404 if not found or unauthorized
+     */
     @GetMapping("/groups/{groupId}/cycle")
     @Operation(summary = "Get the cycle of a group", description = "Available once the group has started.")
     @ApiResponses({
@@ -70,6 +77,13 @@ public class CyclesController {
                         ApplicationError.notFound("Cycle", groupId.toString())));
     }
 
+    /**
+     * Retrieves the state of the pot and contributions for the currently active period in the cycle.
+     *
+     * @param member the authenticated member making the request
+     * @param cycleId the identifier of the financial cycle
+     * @return 200 OK with status of current period, beneficiary, and member contributions
+     */
     @GetMapping("/cycles/{cycleId}/periods/current")
     @Operation(summary = "Get the state of the pot",
             description = "The period in progress: who collects, how much is gathered and the state of every member.")
@@ -88,6 +102,13 @@ public class CyclesController {
                         ApplicationError.notFound("Cycle", cycleId.toString())));
     }
 
+    /**
+     * Lists all periods (rounds) in chronological/turn order opened so far for the cycle.
+     *
+     * @param member the authenticated member making the request
+     * @param cycleId the identifier of the financial cycle
+     * @return 200 OK with list of period statuses
+     */
     @GetMapping("/cycles/{cycleId}/periods")
     @Operation(summary = "List the periods", description = "Every period opened so far, in turn order.")
     @ApiResponses({
@@ -108,6 +129,13 @@ public class CyclesController {
                         ApplicationError.notFound("Cycle", cycleId.toString())));
     }
 
+    /**
+     * Lists the authenticated member's contributions across all periods within the cycle.
+     *
+     * @param member the authenticated member making the request
+     * @param cycleId the identifier of the financial cycle
+     * @return 200 OK with member's contribution breakdown
+     */
     @GetMapping("/cycles/{cycleId}/members/me/contributions")
     @Operation(summary = "List my contributions", description = "The requester's contributions, period by period.")
     @ApiResponses({

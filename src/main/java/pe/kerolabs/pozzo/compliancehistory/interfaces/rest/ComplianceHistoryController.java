@@ -62,6 +62,12 @@ public class ComplianceHistoryController {
         this.linkBuilder = linkBuilder;
     }
 
+    /**
+     * Retrieves the compliance history for the authenticated member across all groups.
+     *
+     * @param member the authenticated member making the request
+     * @return the aggregated compliance history summary and per-group breakdown
+     */
     @GetMapping("/members/me/compliance")
     @Operation(summary = "Get my history", description = "Summary across every group and the detail by group.")
     @ApiResponse(responseCode = "200", description = "My history",
@@ -71,6 +77,14 @@ public class ComplianceHistoryController {
                 complianceQueryService.handle(new GetMyHistoryQuery(member.accountId()))));
     }
 
+    /**
+     * Retrieves the compliance records of all members in a specific savings group.
+     * Only accessible by the group organizer.
+     *
+     * @param member the authenticated member requesting the compliance list (must be organizer)
+     * @param groupId the unique identifier of the savings group
+     * @return list of compliance details for each group member, or 404 if not found/unauthorized
+     */
     @GetMapping("/groups/{groupId}/compliance")
     @Operation(summary = "Get the compliance of the members of a group", description = "Only the organizer.")
     @ApiResponses({
@@ -89,6 +103,14 @@ public class ComplianceHistoryController {
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }
 
+    /**
+     * Retrieves the high-level compliance summary score of a specific member.
+     * Accessible by the member themselves or organizers of mutual savings groups.
+     *
+     * @param member the authenticated member making the request
+     * @param memberId the identifier of the member whose summary is requested
+     * @return the compliance score summary or 404 if not accessible
+     */
     @GetMapping("/members/{memberId}/compliance/summary")
     @Operation(summary = "Get the summary of a member",
             description = "Only the member, or an organizer of a group the member belongs to.")
@@ -107,6 +129,13 @@ public class ComplianceHistoryController {
                         ApplicationError.notFound("Member", memberId.toString())));
     }
 
+    /**
+     * Creates a publicly shareable, tokenized link to the authenticated member's compliance summary.
+     * Links remain valid for 7 days unless manually revoked.
+     *
+     * @param member the authenticated member generating the share link
+     * @return the created share link resource containing the access token and expiration
+     */
     @PostMapping("/members/me/compliance/share")
     @Operation(summary = "Share my history", description = "Creates a public link to the summary, valid for 7 days.")
     @ApiResponse(responseCode = "201", description = "Link created",
@@ -119,6 +148,13 @@ public class ComplianceHistoryController {
                 HttpStatus.CREATED);
     }
 
+    /**
+     * Revokes an existing public share link created by the authenticated member.
+     *
+     * @param member the authenticated member who owns the share link
+     * @param token the public share link token to revoke
+     * @return 204 No Content on success, or 404 if not found or unauthorized
+     */
     @DeleteMapping("/compliance/shares/{token}")
     @Operation(summary = "Revoke a share link", description = "Only the member who created it.")
     @ApiResponses({
@@ -132,6 +168,12 @@ public class ComplianceHistoryController {
                 complianceCommandService.handle(new RevokeShareLinkCommand(token, member.accountId())));
     }
 
+    /**
+     * Public endpoint to view a member's compliance summary via a valid, unexpired share token.
+     *
+     * @param token the unique share link token
+     * @return the shared compliance summary, or 404 if token expired, revoked, or non-existent
+     */
     @GetMapping("/compliance/shared/{token}")
     @SecurityRequirements
     @Operation(summary = "Open a shared history", description = "Public: shows the summary behind a valid link.")

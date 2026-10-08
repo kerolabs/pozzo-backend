@@ -48,6 +48,13 @@ public class AuthenticationController {
         this.authenticationCommandService = authenticationCommandService;
     }
 
+    /**
+     * Requests a 6-digit SMS verification code to begin login or registration.
+     * Code expires in 10 minutes and resending is rate-limited to 30 seconds.
+     *
+     * @param resource payload containing the target mobile phone number
+     * @return 202 Accepted with code dispatch information, or error status
+     */
     @PostMapping("/codes")
     @SecurityRequirements
     @Operation(summary = "Request a verification code",
@@ -68,6 +75,13 @@ public class AuthenticationController {
                 result, CodeRequestedResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.ACCEPTED);
     }
 
+    /**
+     * Verifies the SMS code. If the phone is already associated with an account, opens a session;
+     * otherwise, returns a short-lived registration token to proceed with profile creation.
+     *
+     * @param resource payload with phone number and submitted 6-digit code
+     * @return 200 OK with session credentials or registration token
+     */
     @PostMapping("/codes/verify")
     @SecurityRequirements
     @Operation(summary = "Verify a code",
@@ -91,6 +105,13 @@ public class AuthenticationController {
                 result, AuthenticatedResourceFromResultAssembler::toResourceFromResult, HttpStatus.OK);
     }
 
+    /**
+     * Completes profile registration using the registration token obtained from SMS verification.
+     * Creates the member account and opens their initial session.
+     *
+     * @param resource payload containing registration token, full name, accepted terms, and optional profile details
+     * @return 201 Created with authenticated member session and tokens
+     */
     @PostMapping("/register")
     @SecurityRequirements
     @Operation(summary = "Complete the registration",
@@ -114,6 +135,12 @@ public class AuthenticationController {
                 result, AuthenticatedResourceFromResultAssembler::toResourceFromResult, HttpStatus.CREATED);
     }
 
+    /**
+     * Signs out the authenticated member and revokes the active session token.
+     *
+     * @param member the authenticated member making the request
+     * @return 204 No Content upon successful revocation
+     */
     @PostMapping("/sign-out")
     @Operation(summary = "Sign out", description = "Revokes the session the request was made with.")
     @ApiResponses({

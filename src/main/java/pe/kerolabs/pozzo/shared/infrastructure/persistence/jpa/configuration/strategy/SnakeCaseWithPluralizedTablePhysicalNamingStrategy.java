@@ -12,26 +12,41 @@ import static io.github.encryptorcode.pluralize.Pluralize.pluralize;
  */
 public class SnakeCaseWithPluralizedTablePhysicalNamingStrategy implements PhysicalNamingStrategy {
 
+    /**
+     * Physical catalog naming transformation (no catalog mapping applied).
+     */
     @Override
     public Identifier toPhysicalCatalogName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return null;
     }
 
+    /**
+     * Physical schema naming transformation: converts schema identifiers to snake_case.
+     */
     @Override
     public Identifier toPhysicalSchemaName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
+    /**
+     * Physical table naming transformation: pluralizes and converts table names to snake_case.
+     */
     @Override
     public Identifier toPhysicalTableName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(this.toPlural(identifier));
     }
 
+    /**
+     * Physical sequence naming transformation: converts sequence identifiers to snake_case.
+     */
     @Override
     public Identifier toPhysicalSequenceName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
     }
 
+    /**
+     * Physical column naming transformation: converts column identifiers to snake_case.
+     */
     @Override
     public Identifier toPhysicalColumnName(Identifier identifier, JdbcEnvironment jdbcEnvironment) {
         return this.toSnakeCase(identifier);
