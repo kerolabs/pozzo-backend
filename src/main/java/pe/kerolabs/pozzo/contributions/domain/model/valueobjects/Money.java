@@ -35,15 +35,28 @@ public record Money(BigDecimal amount, String currency) {
         return new Money(BigDecimal.ZERO, currency);
     }
 
+    /**
+     * Adds another monetary amount to the current amount.
+     * Both values must use the same currency.
+     */
+
+
     public Money plus(Money other) {
         requireSameCurrency(other);
         return new Money(amount.add(other.amount), currency);
     }
+    /**
+     * Subtracts another amount from the current amount.
+     * The resulting amount cannot be negative and is limited to zero.
+     */
 
     public Money minus(Money other) {
         requireSameCurrency(other);
         return new Money(amount.subtract(other.amount).max(BigDecimal.ZERO), currency);
     }
+    /**
+     * Multiplies the current monetary amount by an integer.
+     */
 
     public Money times(int times) {
         return new Money(amount.multiply(BigDecimal.valueOf(times)), currency);
