@@ -8,12 +8,19 @@
 #   sudo install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
 # and open TCP 80 and 443 in the Security List of the subnet.
 #
-# Usage, from the machine with SSH access:
-#   ssh ubuntu@<ip> 'sudo bash -s -- <domain> "<public deploy key>"' < deploy/oracle-setup.sh
-# e.g. <domain> = 147-5-100-8.sslip.io, a name that points to the IP without buying a domain.
+# Usage, from the repository folder on the machine with SSH access (the status page travels with it):
+#   { printf 'STATUS_SERVER=%q\n' "$(cat deploy/status/status_server.py)";
+#     printf 'STATUS_PAGE=%q\n' "$(cat deploy/status/index.html)"; cat deploy/oracle-setup.sh; } |
+#     ssh ubuntu@<ip> 'sudo bash -s -- <domain> "<public deploy key>" <status user> "<password hash>"'
+# <domain> may list several names, e.g. "api-kerolabs.duckdns.org, 147-5-100-8.sslip.io".
+# The password hash comes from: caddy hash-password --plaintext '<password>'.
 set -euo pipefail
-DOMAIN="${1:?The domain is required, e.g. 147-5-100-8.sslip.io}"
+DOMAIN="${1:?The domain is required, e.g. api-kerolabs.duckdns.org}"
 DEPLOY_PUBLIC_KEY="${2:?The public deploy key is required}"
+STATUS_USER="${3:?The user of the status page is required}"
+STATUS_PASSWORD_HASH="${4:?The bcrypt hash of its password is required (caddy hash-password)}"
+# The status page itself travels in the environment: STATUS_SERVER and STATUS_PAGE (see the usage above).
+: "${STATUS_SERVER:?}" "${STATUS_PAGE:?}"
 export DEBIAN_FRONTEND=noninteractive
 
 echo "== 1. Swap of 2 GB, so Java does not run out of memory on 1 GB"
@@ -56,6 +63,9 @@ caddy version
 echo "== 4. Folders: incoming jars from GitHub, releases only root can change, settings only pozzo reads"
 install -d -m 755 -o root -g root /opt/pozzo /opt/pozzo/releases
 install -d -m 750 -o deploy -g deploy /opt/pozzo/incoming
+id pozzostatus >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin \
+  --groups systemd-journal pozzostatus
+install -d -m 2750 -o deploy -g pozzostatus /opt/pozzo/status
 install -d -m 750 -o root -g pozzo /etc/pozzo
 if [ ! -f /etc/pozzo/pozzo.env ]; then
   cat > /etc/pozzo/pozzo.env <<'ENV'
@@ -129,28 +139,51 @@ echo "== 6. Deploy scripts: GitHub only hands over a jar; root checks it, switch
 cat > /usr/local/bin/pozzo-deploy <<'SCRIPT'
 #!/bin/bash
 # The only command the GitHub deploy key may run (forced in authorized_keys of deploy).
-# It reads the new jar from standard input and asks pozzo-activate to put it in place.
+# It reads the new jar from standard input and asks pozzo-activate to put it in place. The workflow may
+# send "<run id> <commit>" as its command, which is kept in the records of the status page.
 set -euo pipefail
 umask 027
+run_id=""; commit=""
+if [[ "${SSH_ORIGINAL_COMMAND:-}" =~ ^([0-9]{1,20})\ ([0-9a-f]{40})$ ]]; then
+  run_id="${BASH_REMATCH[1]}"; commit="${BASH_REMATCH[2]}"
+fi
 name="pozzo-$(date -u +%Y%m%d%H%M%S).jar"
 incoming="/opt/pozzo/incoming/$name"
+status=/opt/pozzo/status/current.json
+printf '{"state":"receiving","release":"%s","runId":"%s","commit":"%s","receivedAt":%s}\n' \
+  "$name" "$run_id" "$commit" "$(date +%s)" > "$status"
 head -c 200000000 > "$incoming"
 size=$(stat -c %s "$incoming")
 if [ "$size" -lt 1000000 ] || [ "$(head -c 2 "$incoming")" != "PK" ]; then
-  rm -f "$incoming"
+  rm -f "$incoming" "$status"
   echo "What arrived is not a jar ($size bytes)" >&2
   exit 1
 fi
 echo "Received $name ($((size / 1024 / 1024)) MB)"
-exec sudo /usr/local/bin/pozzo-activate "$name"
+exec sudo /usr/local/bin/pozzo-activate "$name" "$run_id" "$commit"
 SCRIPT
 cat > /usr/local/bin/pozzo-activate <<'SCRIPT'
 #!/bin/bash
 # Run by root through sudo: copies a received jar where only root can write, restarts the service and waits
 # until it answers healthy. If it does not come up, it goes back to the previous release.
 set -euo pipefail
-name="${1:-}"
+name="${1:-}"; run_id="${2:-}"; commit="${3:-}"
 [[ "$name" =~ ^pozzo-[0-9]{14}\.jar$ ]] || { echo "Invalid release name" >&2; exit 2; }
+[[ "$run_id" =~ ^[0-9]{0,20}$ && "$commit" =~ ^([0-9a-f]{40})?$ ]] || { echo "Invalid run or commit" >&2; exit 2; }
+status_dir=/opt/pozzo/status
+received_at=$(date +%s)
+
+# Records for the status page: the stage of the deploy in progress, and one line per deploy when it ends.
+record() {
+  printf '{"state":"%s","release":"%s","runId":"%s","commit":"%s","receivedAt":%s,"startedAt":%s}\n' \
+    "$1" "$name" "$run_id" "$commit" "$received_at" "${started_at:-null}" > "$status_dir/current.json"
+}
+finish() {
+  printf '{"state":"%s","release":"%s","runId":"%s","commit":"%s","receivedAt":%s,"startedAt":%s,"finishedAt":%s,"startSeconds":%s}\n' \
+    "$1" "$name" "$run_id" "$commit" "$received_at" "$started_at" "$(date +%s)" "$(( $(date +%s) - started_at ))" \
+    >> "$status_dir/history.jsonl"
+  rm -f "$status_dir/current.json"
+}
 incoming="/opt/pozzo/incoming/$name"
 release="/opt/pozzo/releases/$name"
 [ -f "$incoming" ] || { echo "Release not found" >&2; exit 2; }
@@ -170,24 +203,35 @@ healthy() {
 }
 
 ln -sfn "$release" /opt/pozzo/current.jar
+started_at=$(date +%s)
+record starting
+since=$(date '+%Y-%m-%d %H:%M:%S')
 systemctl restart pozzo
-echo "Started $name, waiting for /actuator/health..."
+echo "Started $name, waiting for /actuator/health. Log of the start:"
+# The log of the service goes to whoever deployed (the workflow of GitHub) while it starts
+journalctl -u pozzo -f -o cat --since "$since" &
+follower=$!
+trap 'kill $follower 2>/dev/null || true' EXIT
 if healthy; then
-  echo "UP: $name is serving"
+  kill $follower 2>/dev/null || true
+  echo "UP: $name is serving, after $(( $(date +%s) - started_at )) s"
+  finish up
   # Keep the three newest releases, so there is always one to go back to
   ls -1t /opt/pozzo/releases/pozzo-*.jar | tail -n +4 | xargs -r rm -f
   exit 0
 fi
-echo "$name did not come up; last lines of its log:" >&2
-journalctl -u pozzo -n 40 --no-pager >&2 || true
+kill $follower 2>/dev/null || true
+echo "$name did not come up after $(( $(date +%s) - started_at )) s" >&2
 if [ -n "$previous" ] && [ -f "$previous" ] && [ "$previous" != "$release" ]; then
   ln -sfn "$previous" /opt/pozzo/current.jar
   systemctl restart pozzo
   echo "Rolled back to $(basename "$previous")" >&2
+  finish rolled_back
 else
   # Nothing to go back to: stop it instead of restarting it forever on a small CPU
   systemctl stop pozzo
   echo "No previous release to go back to; the service is stopped" >&2
+  finish stopped
 fi
 exit 1
 SCRIPT
@@ -204,11 +248,48 @@ echo "restrict,command=\"/usr/local/bin/pozzo-deploy\" $DEPLOY_PUBLIC_KEY" > /ho
 chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
 
-echo "== 9. Caddy: HTTPS for $DOMAIN in front of the backend"
+echo "== 9. The status page: a small service that only reads, served by Caddy under /status with a password"
+install -d -m 755 /opt/pozzo-status
+install -m 644 /dev/stdin /opt/pozzo-status/status_server.py <<< "$STATUS_SERVER"
+install -m 644 /dev/stdin /opt/pozzo-status/index.html <<< "$STATUS_PAGE"
+cat > /etc/systemd/system/pozzo-status.service <<'UNIT'
+[Unit]
+Description=Status page of the Pozzo backend
+After=network-online.target
+
+[Service]
+User=pozzostatus
+Group=pozzostatus
+ExecStart=/usr/bin/python3 /opt/pozzo-status/status_server.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable pozzo-status.service >/dev/null 2>&1
+systemctl restart pozzo-status.service
+
+echo "== 10. Caddy: HTTPS for $DOMAIN in front of the backend, and /status behind a password"
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
-	encode gzip
-	reverse_proxy 127.0.0.1:8080
+	handle /status* {
+		basic_auth {
+			$STATUS_USER $STATUS_PASSWORD_HASH
+		}
+		reverse_proxy 127.0.0.1:8090 {
+			flush_interval -1
+		}
+	}
+	handle {
+		encode gzip
+		reverse_proxy 127.0.0.1:8080
+	}
 }
 CADDY
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1

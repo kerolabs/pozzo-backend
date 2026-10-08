@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estado del backend · Pozzo</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #FFF8F6; --surface: #FFF1ED; --surface-2: #FFE9E4; --line: #DEC0B8;
+      --text: #241916; --muted: #57423C; --primary: #943015; --primary-soft: #FFDBD1;
+      --ok: #426900; --ok-soft: #C2F280; --warn: #974806; --warn-soft: #FFDBC8;
+      --bad: #BA1A1A; --bad-soft: #FFDAD6; --log-bg: #1B110E; --log-text: #F3DED9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --bg: #1B110E; --surface: #241916; --surface-2: #2F2320; --line: #57423C;
+        --text: #F3DED9; --muted: #DEC0B8; --primary: #FFB4A1; --primary-soft: #5C2414;
+        --ok: #A7D567; --ok-soft: #2A4200; --warn: #FFB68A; --warn-soft: #5A2A00;
+        --bad: #FFB4AB; --bad-soft: #690005; --log-bg: #120A08; --log-text: #F3DED9;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Plus Jakarta Sans", system-ui, sans-serif; }
+    main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
+    header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+    h1 { margin: 0; font-size: 24px; } h2 { margin: 0 0 12px; font-size: 17px; }
+    .muted { color: var(--muted); } .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; min-width: 0; }
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-weight: 700; }
+    .pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+    .ok { background: var(--ok-soft); color: var(--ok); } .warn { background: var(--warn-soft); color: var(--warn); }
+    .bad { background: var(--bad-soft); color: var(--bad); } .idle { background: var(--surface-2); color: var(--muted); }
+    .big { font-size: 28px; font-weight: 700; }
+    dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; } dt { color: var(--muted); } dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+    .bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin: 4px 0 10px; }
+    .bar > span { display: block; height: 100%; background: var(--primary); }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+    .step { border-radius: 14px; padding: 12px; background: var(--surface-2); color: var(--muted); }
+    .step b { display: block; color: var(--text); }
+    .step.done { background: var(--ok-soft); color: var(--ok); } .step.done b { color: var(--ok); }
+    .step.now { background: var(--primary-soft); color: var(--primary); } .step.now b { color: var(--primary); }
+    .step.now::after { content: " ●"; animation: blink 1s infinite; }
+    .step.failed { background: var(--bad-soft); color: var(--bad); } .step.failed b { color: var(--bad); }
+    @keyframes blink { 50% { opacity: .2; } }
+    table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 13px; }
+    .table-wrap { overflow-x: auto; }
+    a { color: var(--primary); }
+    .tag { padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+    .logs-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .logs-head h2 { margin: 0; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    input, button { font: inherit; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); padding: 6px 14px; }
+    button { cursor: pointer; font-weight: 600; } button[aria-pressed="true"] { background: var(--primary); color: var(--bg); border-color: var(--primary); }
+    #logs { background: var(--log-bg); color: var(--log-text); border-radius: 14px; height: 460px; overflow: auto; padding: 12px; margin: 0;
+      font: 12.5px/1.55 "JetBrains Mono", ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #logs .e { color: #FF8A80; } #logs .w { color: #FFC46B; } #logs .s { color: #B6F27A; font-weight: 600; } #logs .t { color: #A58E87; }
+    @media (max-width: 640px) { .steps { grid-template-columns: repeat(2, 1fr); } #logs { height: 360px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Estado del backend</h1>
+      <div class="muted">Pozzo · <span id="host"></span> · actualizado <span id="updated">…</span></div>
+    </div>
+    <span id="state" class="pill idle">Cargando</span>
+  </header>
+
+  <section class="card" id="deploy-card">
+    <h2>Despliegue</h2>
+    <div id="deploy-title" class="muted">Sin despliegues en curso.</div>
+    <div class="steps" id="steps"></div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2>Backend</h2>
+      <dl>
+        <dt>Health</dt><dd id="health">…</dd>
+        <dt>Encendido desde</dt><dd id="since">…</dd>
+        <dt>Versión</dt><dd id="release" class="mono">…</dd>
+        <dt>Commit</dt><dd id="commit">…</dd>
+        <dt>Memoria de Java</dt><dd id="java-memory">…</dd>
+        <dt>Reinicios</dt><dd id="restarts">…</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Servidor</h2>
+      <div class="muted">Memoria <span id="mem-text"></span></div><div class="bar"><span id="mem-bar"></span></div>
+      <div class="muted">Swap <span id="swap-text"></span></div><div class="bar"><span id="swap-bar"></span></div>
+      <div class="muted">Disco <span id="disk-text"></span></div><div class="bar"><span id="disk-bar"></span></div>
+      <dl><dt>Carga (1, 5, 15 min)</dt><dd id="load">…</dd><dt>Servidor encendido</dt><dd id="uptime">…</dd></dl>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Historial de despliegues</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Cuándo</th><th>Commit</th><th>Arranque</th><th>Resultado</th></tr></thead>
+        <tbody id="history"><tr><td colspan="4" class="muted">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="github-error" class="muted"></div>
+  </section>
+
+  <section class="card">
+    <div class="logs-head">
+      <h2>Logs en vivo <span id="logs-state" class="tag idle">conectando</span></h2>
+      <div class="controls">
+        <input id="filter" type="search" placeholder="Filtrar, p. ej. ERROR" aria-label="Filtrar logs">
+        <button id="pause" type="button" aria-pressed="false">Pausar</button>
+        <button id="clear" type="button">Limpiar</button>
+      </div>
+    </div>
+    <pre id="logs" aria-live="off"></pre>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  $("host").textContent = location.host;
+  const fmtBytes = (b) => b == null ? "—" : b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB";
+  const fmtDuration = (s) => {
+    if (s == null) return "—";
+    if (s < 60) return s + " s";
+    const m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+    return d ? `${d} d ${h % 24} h` : h ? `${h} h ${m % 60} min` : `${m} min ${s % 60} s`;
+  };
+  const fmtDate = (value) => new Date(typeof value === "number" ? value * 1000 : value)
+    .toLocaleString("es-PE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const setBar = (id, used, total) => { $(id).style.width = total ? Math.min(100, used / total * 100) + "%" : "0"; };
+  const text = (id, value) => { $(id).textContent = value; };
+  let repository = "", fast = false;
+
+  function render(data) {
+    repository = data.repository;
+    text("updated", new Date().toLocaleTimeString("es-PE"));
+    const { health, service, resources: r, deploys, github } = data;
+    const runs = github.runs || [];
+    const running = runs.find((run) => run.status !== "completed");
+    const inProgress = deploys.inProgress;
+
+    // The headline: deploying beats everything, then the health check.
+    const state = $("state");
+    if (running || inProgress) { state.className = "pill warn"; state.textContent = "Desplegando"; }
+    else if (health.status === "UP") { state.className = "pill ok"; state.textContent = "Operativo"; }
+    else if (service.active === "activating" || (service.active === "active" && health.status !== "UP")) { state.className = "pill warn"; state.textContent = "Arrancando"; }
+    else { state.className = "pill bad"; state.textContent = "Caído"; }
+
+    text("health", health.status === "UP" ? `UP · ${health.millis} ms` : health.status);
+    text("since", service.since && service.active === "active" ? `${fmtDate(service.since)} (hace ${fmtDuration(data.now - service.since)})` : service.active || "—");
+    text("release", deploys.currentRelease || "—");
+    const current = deploys.history.find((item) => item.release === deploys.currentRelease && item.state === "up");
+    $("commit").innerHTML = current && current.commit ? commitLink(current.commit) : "—";
+    text("java-memory", fmtBytes(service.memory));
+    text("restarts", String(service.restarts));
+
+    const memUsed = r.memory.total - r.memory.available;
+    text("mem-text", `${fmtBytes(memUsed)} de ${fmtBytes(r.memory.total)}`); setBar("mem-bar", memUsed, r.memory.total);
+    text("swap-text", `${fmtBytes(r.swap.used)} de ${fmtBytes(r.swap.total)}`); setBar("swap-bar", r.swap.used, r.swap.total);
+    text("disk-text", `${fmtBytes(r.disk.used)} de ${fmtBytes(r.disk.total)}`); setBar("disk-bar", r.disk.used, r.disk.total);
+    text("load", `${r.load.join(" · ")} (${r.cpus} CPU)`);
+    text("uptime", fmtDuration(r.uptime));
+
+    renderDeploy(running, inProgress, runs, deploys.history, data.now);
+    renderHistory(runs, deploys.history);
+    $("github-error").textContent = github.error ? `GitHub: ${github.error}` : "";
+    fast = Boolean(running || inProgress);
+  }
+
+  function commitLink(sha) {
+    return `<a class="mono" href="https://github.com/${repository}/commit/${sha}" target="_blank" rel="noopener">${sha.slice(0, 7)}</a>`;
+  }
+
+  function renderDeploy(running, inProgress, runs, history, now) {
+    const labels = ["Compilar en GitHub", "Enviar el jar", "Arrancar el backend", "En línea"];
+    let stage = -1, failed = -1, title = "Sin despliegues en curso.";
+    const run = running || runs[0];
+    const record = run && history.find((item) => String(item.runId) === String(run.id));
+    if (inProgress && (!run || String(inProgress.runId) === String(run.id) || !inProgress.runId)) {
+      stage = inProgress.state === "receiving" ? 1 : 2;
+      const since = inProgress.state === "receiving" ? inProgress.receivedAt : inProgress.startedAt;
+      title = `${inProgress.state === "receiving" ? "Recibiendo" : "Arrancando"} ${inProgress.release || ""} · ${fmtDuration(now - since)}`;
+    } else if (running) {
+      stage = 0;
+      title = `Run #${running.number}: “${running.title}” · ${fmtDuration(Math.round(now - Date.parse(running.createdAt) / 1000))}`;
+    } else if (run) {
+      if (record && record.state === "up") { stage = 4; title = `Último: run #${run.number}, en línea en ${record.startSeconds} s · ${fmtDate(record.finishedAt)}`; }
+      else if (record) { failed = 2; title = `Último: run #${run.number} no arrancó (${record.state === "rolled_back" ? "volvió a la versión anterior" : "servicio detenido"})`; }
+      else if (run.conclusion === "success") { stage = 4; title = `Último: run #${run.number} terminó bien · ${fmtDate(run.updatedAt)}`; }
+      else { failed = 0; title = `Último: run #${run.number} falló en GitHub (${run.conclusion})`; }
+    }
+    $("deploy-title").innerHTML = run ? `${title} · <a href="${run.url}" target="_blank" rel="noopener">ver en GitHub</a>` : title;
+    $("steps").innerHTML = labels.map((label, index) => {
+      let cls = "", note = "Pendiente";
+      if (failed === index) { cls = "failed"; note = "Falló"; }
+      else if (index < stage || stage === 4 || (failed > index)) { cls = "done"; note = "Listo"; }
+      else if (index === stage) { cls = "now"; note = "En curso"; }
+      if (stage === -1 && failed === -1) { cls = ""; note = "—"; }
+      return `<div class="step ${cls}"><b>${label}</b>${note}</div>`;
+    }).join("");
+  }
+
+  function renderHistory(runs, history) {
+    const rows = runs.slice(0, 12).map((run) => {
+      const record = history.find((item) => String(item.runId) === String(run.id));
+      let result;
+      if (run.status !== "completed") result = `<span class="tag warn">En curso</span>`;
+      else if (record) result = record.state === "up" ? `<span class="tag ok">En línea</span>`
+        : record.state === "rolled_back" ? `<span class="tag bad">Volvió a la anterior</span>` : `<span class="tag bad">No arrancó</span>`;
+      else result = run.conclusion === "success" ? `<span class="tag ok">Bien</span>` : `<span class="tag bad">${run.conclusion || "—"}</span>`;
+      const start = record && record.startSeconds != null ? `${record.startSeconds} s` : "—";
+      return `<tr><td>${fmtDate(run.createdAt)}<div class="muted">#${run.number} · ${run.actor}</div></td>`
+        + `<td>${commitLink(run.commit)} <a href="${run.url}" target="_blank" rel="noopener">run</a><div class="muted">${escapeHtml(run.title)}</div></td>`
+        + `<td>${start}</td><td>${result}</td></tr>`;
+    });
+    $("history").innerHTML = rows.join("") || `<tr><td colspan="4" class="muted">Todavía no hay despliegues.</td></tr>`;
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  }
+
+  async function refresh() {
+    try {
+      const response = await fetch("/status/api/summary", { cache: "no-store" });
+      if (response.ok) render(await response.json());
+    } catch (error) {
+      $("state").className = "pill bad"; $("state").textContent = "Sin conexión";
+    }
+    setTimeout(refresh, fast ? 2000 : 8000);
+  }
+  refresh();
+
+  // Live log: the last lines, then each new one. Pausing keeps receiving but stops drawing.
+  const logs = $("logs"), filter = $("filter"), pause = $("pause");
+  const buffer = [];
+  const MAX = 2000;
+  const classify = (line) => / ERROR |Exception|\tat |APPLICATION FAILED/.test(line) ? "e"
+    : / WARN /.test(line) ? "w" : /Started \w+Application|Tomcat started/.test(line) ? "s" : "";
+  function drawLine(line) {
+    const query = filter.value.trim().toLowerCase();
+    if (query && !line.toLowerCase().includes(query)) return;
+    const atBottom = logs.scrollHeight - logs.scrollTop - logs.clientHeight < 40;
+    const match = line.match(/^(\S+)\s+\S+\[\d+\]:\s?(.*)$/);
+    const row = document.createElement("div");
+    const cls = classify(line);
+    if (cls) row.className = cls;
+    if (match) {
+      const time = document.createElement("span");
+      time.className = "t";
+      time.textContent = match[1].slice(11, 19) + "  ";
+      row.append(time, match[2]);
+    } else {
+      row.textContent = line;
+    }
+    logs.append(row);
+    while (logs.childElementCount > MAX) logs.firstChild.remove();
+    if (atBottom) logs.scrollTop = logs.scrollHeight;
+  }
+  function redraw() { logs.textContent = ""; buffer.forEach(drawLine); logs.scrollTop = logs.scrollHeight; }
+  const source = new EventSource("/status/api/logs");
+  source.onopen = () => { $("logs-state").className = "tag ok"; $("logs-state").textContent = "en vivo"; };
+  source.onerror = () => { $("logs-state").className = "tag warn"; $("logs-state").textContent = "reconectando"; };
+  source.onmessage = (event) => {
+    const line = JSON.parse(event.data);
+    buffer.push(line);
+    if (buffer.length > MAX) buffer.shift();
+    if (pause.getAttribute("aria-pressed") !== "true") drawLine(line);
+  };
+  filter.addEventListener("input", redraw);
+  pause.addEventListener("click", () => {
+    const paused = pause.getAttribute("aria-pressed") === "true";
+    pause.setAttribute("aria-pressed", String(!paused));
+    pause.textContent = paused ? "Pausar" : "Reanudar";
+    if (paused) redraw();
+  });
+  $("clear").addEventListener("click", () => { buffer.length = 0; logs.textContent = ""; });
+})();
+</script>
+</body>
+</html>
