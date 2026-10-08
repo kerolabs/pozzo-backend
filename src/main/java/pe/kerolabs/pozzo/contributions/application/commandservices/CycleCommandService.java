@@ -14,12 +14,18 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
 public interface CycleCommandService {
 
     /**
-     * Starts the cycle of a group and opens its first period. Starting it again has no effect.
+     * Starts the financial cycle of a group and opens its first period. Starting it again has no effect.
+     *
+     * @param command command with group ID and organizer account ID
+     * @return the started cycle aggregate, or an error
      */
     Result<Cycle, ApplicationError> handle(StartCycleCommand command);
 
     /**
      * Confirms the delivery of a pot, then opens the next period or closes the cycle after the last turn.
+     *
+     * @param command command with period ID and organizer account ID
+     * @return pot delivery result containing the cycle, delivered period, and optional next period
      */
     Result<PotDelivery, ApplicationError> handle(DeliverPotCommand command);
 

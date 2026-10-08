@@ -20,22 +20,34 @@ import java.util.UUID;
 public interface ComplianceQueryService {
 
     /**
-     * The requester's own history; an empty record when nothing was recorded yet.
+     * Retrieves the requester's own compliance history; returns an empty record when nothing has been recorded yet.
+     *
+     * @param query query with member's account ID
+     * @return the member's record aggregate
      */
     MemberRecord handle(GetMyHistoryQuery query);
 
     /**
-     * The summary of every active member of a group, for its organizer only.
+     * Retrieves the compliance summary of every active member in a group, accessible only by the group organizer.
+     *
+     * @param query query containing group ID and organizer account ID
+     * @return optional list of member compliance summaries, or empty if unauthorized
      */
     Optional<List<MemberCompliance>> handle(GetGroupComplianceQuery query);
 
     /**
      * The summary of a member, for the member or one of their organizers; empty for anyone else.
+     *
+     * @param query query containing target member ID and requester account ID
+     * @return optional compliance summary, or empty if not accessible
      */
     Optional<ComplianceSummary> handle(GetMemberSummaryQuery query);
 
     /**
      * What a shared link shows; empty when the token is malformed, unknown, revoked or expired.
+     *
+     * @param query query containing public share token
+     * @return optional shared history details, or empty if token expired/invalid
      */
     Optional<SharedHistory> handle(GetSharedHistoryQuery query);
 

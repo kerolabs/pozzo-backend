@@ -20,6 +20,8 @@ public interface ProfilePhotoStorage {
 
     /**
      * Deletes a photo stored before. A URL this storage did not issue is ignored.
+     *
+     * @param publicUrl the public URL of the photo to be deleted
      */
     void delete(String publicUrl);
 }

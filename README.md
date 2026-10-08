@@ -32,6 +32,31 @@ cp .env.example .env   # completa como mínimo DATABASE_* y JWT_SECRET
 
 Los proveedores de SMS, correo y push usan `log` por defecto y escriben en la consola, así que para arrancar solo se necesitan la base de datos y el secreto JWT. Revisa `.env.example` para la configuración opcional de Supabase Storage, SMS Gate, Brevo y Firebase.
 
+
+## Pruebas y Calidad de Código
+
+Para compilar y ejecutar las pruebas unitarias y de integración:
+
+`ash
+# Compilar todas las clases sin ejecutar pruebas
+./mvnw test-compile
+
+# Ejecutar el conjunto completo de pruebas unitarias
+./mvnw test
+`
+
+## Ejecución con Docker
+
+El proyecto cuenta con un Dockerfile multi-stage optimizado para producción:
+
+`ash
+# Construir la imagen de contenedor
+docker build -t kerolabs/pozzo-backend .
+
+# Ejecutar el contenedor pasando el archivo de entorno
+docker run -d --name pozzo-api --env-file .env -p 8080:8080 kerolabs/pozzo-backend
+`
+
 ## Despliegue
 
 Cada push a `main` ejecuta `.github/workflows/deploy.yml`: GitHub Actions compila el jar y lo envía por SSH a una instancia de Oracle Cloud que corre detrás de Caddy (`deploy/oracle-setup.sh` prepara el servidor). También se incluye un `Dockerfile` para plataformas de contenedores como Render.

@@ -44,6 +44,13 @@ public class AccountRecoveryController {
         this.authenticationCommandService = authenticationCommandService;
     }
 
+    /**
+     * Requests a 6-digit account recovery verification code sent to the registered backup email.
+     * Always returns 202 Accepted to prevent account enumeration.
+     *
+     * @param resource request payload containing the user's email address
+     * @return 202 Accepted with details on expiration and resend delay
+     */
     @PostMapping("/codes")
     @SecurityRequirements
     @Operation(summary = "Request a recovery code",
@@ -65,6 +72,12 @@ public class AccountRecoveryController {
                 HttpStatus.ACCEPTED);
     }
 
+    /**
+     * Verifies the email recovery code and yields a short-lived recovery token (valid 15 min).
+     *
+     * @param resource request payload containing the email and submitted verification code
+     * @return 200 OK with recovery token, or 401 Unauthorized if invalid/expired
+     */
     @PostMapping("/codes/verify")
     @SecurityRequirements
     @Operation(summary = "Verify a recovery code", description = "Returns a token, valid for 15 minutes, to link a new number.")
@@ -83,6 +96,12 @@ public class AccountRecoveryController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Requests an SMS verification code for the new phone number to be linked during recovery.
+     *
+     * @param resource payload containing the verified recovery token and the prospective phone number
+     * @return 202 Accepted with code request status
+     */
     @PostMapping("/phone-number/codes")
     @SecurityRequirements
     @Operation(summary = "Request an SMS code for the new number")
@@ -101,6 +120,13 @@ public class AccountRecoveryController {
                 result, CodeRequestedResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.ACCEPTED);
     }
 
+    /**
+     * Completes account recovery by confirming the SMS code on the new phone number,
+     * invalidating sessions of the old device, and issuing a new authenticated JWT session.
+     *
+     * @param resource payload with recovery token, new phone number, SMS verification code, and device label
+     * @return 200 OK with authenticated tokens and profile, or error status
+     */
     @PostMapping("/phone-number")
     @SecurityRequirements
     @Operation(summary = "Link the new number and sign in",

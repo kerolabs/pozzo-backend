@@ -53,6 +53,15 @@ public class TurnsController {
         this.externalIamService = externalIamService;
     }
 
+    /**
+     * Executes a pseudo-random draw (lottery) to assign the turn sequence for all enrolled members.
+     * The random seed is published transparently so participants can audit the draw result.
+     * Only permitted for the organizer when all seats are filled.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with the generated turn calendar resource, or error status
+     */
     @PostMapping("/draw")
     @Operation(summary = "Draw the turns",
             description = "Only the organizer, with every seat taken. Running it again repeats the draw. "
@@ -74,6 +83,16 @@ public class TurnsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Sets a manually agreed turn sequence for the savings group.
+     * Every enrolled member must be allocated exactly one turn number.
+     * Only permitted for the organizer when all seats are filled.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param resource payload containing the explicit order of membership identifiers
+     * @return 200 OK with the assigned turn calendar resource, or error status
+     */
     @PostMapping("/agreed")
     @Operation(summary = "Set the agreed order",
             description = "Only the organizer, with every seat taken. Every member must appear exactly once.")
@@ -96,6 +115,14 @@ public class TurnsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Retrieves the complete turn calendar showing dates, turns, and assigned beneficiaries.
+     * Accessible by enrolled members of the group.
+     *
+     * @param member the authenticated member making the request
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with turn calendar resource, or 404 if not found
+     */
     @GetMapping
     @Operation(summary = "Get the turn calendar", description = "Only for members of the group.")
     @ApiResponses({

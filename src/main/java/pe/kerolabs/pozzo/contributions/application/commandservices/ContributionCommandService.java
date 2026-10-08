@@ -19,19 +19,47 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
 public interface ContributionCommandService {
 
     /**
-     * Registers the requester's contribution with the data read from the receipt. A receipt that
-     * matches settles the contribution at once; one that does not waits for the organizer.
+     * Registers the requester's contribution with the data read from the receipt.
+     * A receipt that matches settles the contribution at once; one that does not waits for organizer review.
+     *
+     * @param command command containing period ID, contributor account ID, and payment proof data
+     * @return the registered contribution aggregate, or an error if invalid/already settled
      */
     Result<Contribution, ApplicationError> handle(RegisterContributionCommand command);
 
+    /**
+     * Registers a direct cash contribution on behalf of any member.
+     * Only permitted for the group organizer.
+     *
+     * @param command command with period ID, organizer account ID, target member ID, and payment details
+     * @return the registered and validated contribution aggregate, or an error
+     */
     Result<Contribution, ApplicationError> handle(RegisterCashContributionCommand command);
 
+    /**
+     * Registers a coverage payment where one member covers the payment for another member.
+     * Only permitted for the group organizer.
+     *
+     * @param command command with period ID, organizer account ID, covering member ID, and covered member ID
+     * @return the registered coverage contribution aggregate, or an error
+     */
     Result<Contribution, ApplicationError> handle(RegisterCoverageCommand command);
 
+    /**
+     * Reviews an inconsistent contribution to approve or reject it.
+     * Only permitted for the group organizer.
+     *
+     * @param command command with contribution ID, organizer account ID, approval decision, and optional rejection reason
+     * @return the updated contribution aggregate, or an error
+     */
     Result<Contribution, ApplicationError> handle(ReviewContributionCommand command);
 
     /**
-     * Keeps the image of the receipt of a contribution; only the member who registered it can.
+     * Stores and attaches the binary image of the payment receipt to a contribution.
+     * Only permitted for the member who registered the contribution.
+     *
+     * @param command command containing contribution ID, member account ID, raw image bytes, and content type
+     * @return the updated contribution aggregate with image path, or an error
      */
     Result<Contribution, ApplicationError> handle(AttachReceiptImageCommand command);
 }

@@ -59,6 +59,14 @@ public class SavingsGroupsController {
         this.savingsGroupQueryService = savingsGroupQueryService;
     }
 
+    /**
+     * Creates a new savings group (ROSCA/junta).
+     * The authenticated member creating the group is assigned as its organizer.
+     *
+     * @param member the authenticated member creating the group
+     * @param resource payload containing group title, description, rules, and currency
+     * @return 201 Created with initial group metadata, or error status
+     */
     @PostMapping("/groups")
     @Operation(summary = "Create a savings group", description = "The authenticated member becomes its organizer.")
     @ApiResponses({
@@ -78,6 +86,14 @@ public class SavingsGroupsController {
                 HttpStatus.CREATED);
     }
 
+    /**
+     * Retrieves the details and state of a savings group.
+     * Only accessible by members of the group.
+     *
+     * @param member the authenticated member making the request
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with group resource, or 404 if not found/unauthorized
+     */
     @GetMapping("/groups/{groupId}")
     @Operation(summary = "Get a savings group", description = "Only its members can see it.")
     @ApiResponses({
@@ -95,6 +111,12 @@ public class SavingsGroupsController {
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }
 
+    /**
+     * Lists all savings groups in which the authenticated member participates or organizes.
+     *
+     * @param member the authenticated member making the request
+     * @return 200 OK with list of savings groups
+     */
     @GetMapping("/members/me/groups")
     @Operation(summary = "List my savings groups", description = "Groups where the member has an active membership.")
     @ApiResponse(responseCode = "200", description = "Groups of the member",
@@ -106,6 +128,15 @@ public class SavingsGroupsController {
         return ResponseEntity.ok(groups);
     }
 
+    /**
+     * Updates savings group rules (e.g. contribution amount, frequency, turn schedule mode).
+     * Only permitted for the organizer prior to group start.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param resource payload with updated rules
+     * @return 200 OK with updated group resource, or error status
+     */
     @PutMapping("/groups/{groupId}/rules")
     @Operation(summary = "Adjust the rules", description = "Only the organizer, and only before the group starts.")
     @ApiResponses({
@@ -128,6 +159,15 @@ public class SavingsGroupsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Defines the destination bank or payment details where members should transfer contributions.
+     * Only permitted for the organizer prior to start.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param resource payload containing destination account / method information
+     * @return 200 OK with updated group resource, or error status
+     */
     @PatchMapping("/groups/{groupId}/destination")
     @Operation(summary = "Define where the contributions are sent",
             description = "Only the organizer, and only before the group starts.")
@@ -149,6 +189,14 @@ public class SavingsGroupsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Starts the savings group, locking the member roster, closing invitations,
+     * and activating the first contribution cycle and round.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with started group resource, or error status
+     */
     @PostMapping("/groups/{groupId}/start")
     @Operation(summary = "Start the group",
             description = "Requires every seat taken, the turns assigned and the destination defined. "
@@ -171,6 +219,14 @@ public class SavingsGroupsController {
                 HttpStatus.OK);
     }
 
+    /**
+     * Cancels and deletes an unstarted savings group along with its invitations and memberships.
+     * Only permitted for the organizer prior to start.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @return 204 No Content on successful deletion
+     */
     @DeleteMapping("/groups/{groupId}")
     @Operation(summary = "Delete the group",
             description = "Only the organizer, and only before the group starts. Its members and invitations "

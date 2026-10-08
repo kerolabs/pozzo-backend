@@ -51,6 +51,12 @@ public class ProfilesController {
         this.accountQueryService = accountQueryService;
     }
 
+    /**
+     * Retrieves the profile information of the authenticated member.
+     *
+     * @param member the authenticated member making the request
+     * @return 200 OK with the member's profile data, or error status
+     */
     @GetMapping
     @Operation(summary = "Get my profile")
     @ApiResponses({
@@ -67,6 +73,15 @@ public class ProfilesController {
                         ApplicationError.notFound("Account", member.accountId().toString())));
     }
 
+    /**
+     * Uploads and updates the member's profile avatar photo.
+     * Stores image in cloud storage and deletes the prior photo if present.
+     *
+     * @param member the authenticated member updating their photo
+     * @param photo multipart image file (JPEG, PNG, WebP up to 2MB)
+     * @return 200 OK with updated profile resource
+     * @throws IOException if binary image reading fails
+     */
     @PutMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Change my photo",
             description = "Stores a JPEG, PNG or WebP image of up to 2 MB as the profile photo and deletes the previous one.")
@@ -86,6 +101,12 @@ public class ProfilesController {
                 result, ProfileResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 
+    /**
+     * Removes the member's avatar photo, falling back to name initials in UI.
+     *
+     * @param member the authenticated member removing their photo
+     * @return 200 OK with updated profile resource
+     */
     @DeleteMapping("/photo")
     @Operation(summary = "Remove my photo", description = "The initials are shown instead.")
     @ApiResponse(responseCode = "200", description = "Photo removed",
@@ -96,6 +117,14 @@ public class ProfilesController {
                 result, ProfileResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.OK);
     }
 
+    /**
+     * Updates editable profile fields including full name, visual theme, backup email,
+     * and preferred payment details (e.g. Yape/Plin phone number).
+     *
+     * @param member the authenticated member updating profile
+     * @param resource payload containing updated profile fields
+     * @return 200 OK with updated profile resource
+     */
     @PutMapping
     @Operation(summary = "Update my profile", description = "Changes the display name, photo, visual theme, Yape or Plin number and backup email.")
     @ApiResponses({
