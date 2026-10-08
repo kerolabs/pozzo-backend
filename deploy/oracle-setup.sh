@@ -125,6 +125,8 @@ ExecStart=/usr/bin/java -Xms128m -Xmx320m -XX:MaxMetaspaceSize=200m -XX:Reserved
   -Djava.security.egd=file:/dev/./urandom -jar /opt/pozzo/current.jar
 Restart=always
 RestartSec=10
+# Java exits with 143 when systemd stops it (SIGTERM, e.g. on every deploy): a clean stop, not a failure
+SuccessExitStatus=143
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
