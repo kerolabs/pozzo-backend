@@ -19,4 +19,9 @@ public interface SavingsGroupRepository {
     List<SavingsGroup> findAllByMemberId(UUID memberId);
 
     SavingsGroup save(SavingsGroup group);
+
+    /**
+     * Deletes the group with its memberships and turns, and publishes its pending domain events.
+     */
+    void delete(SavingsGroup group);
 }

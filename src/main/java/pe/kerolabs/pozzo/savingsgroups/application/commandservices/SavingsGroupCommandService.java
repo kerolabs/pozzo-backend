@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberComm
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
@@ -43,6 +44,11 @@ public interface SavingsGroupCommandService {
      * Starts the group and expires its invitation.
      */
     Result<SavingsGroup, ApplicationError> handle(StartGroupCommand command);
+
+    /**
+     * Deletes a group that has not started, with its members and invitations, and returns it as it was.
+     */
+    Result<SavingsGroup, ApplicationError> handle(DeleteGroupCommand command);
 
     /**
      * Closes the group when Contributions reports that its cycle is over.

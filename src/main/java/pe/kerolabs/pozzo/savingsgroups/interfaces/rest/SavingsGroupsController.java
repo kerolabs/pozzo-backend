@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.savingsgroups.application.commandservices.SavingsGroupCommandService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetGroupByIdQuery;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetMyGroupsQuery;
@@ -167,5 +169,24 @@ public class SavingsGroupsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
                 group -> GroupResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
                 HttpStatus.OK);
+    }
+
+    @DeleteMapping("/groups/{groupId}")
+    @Operation(summary = "Delete the group",
+            description = "Only the organizer, and only before the group starts. Its members and invitations "
+                    + "go with it, and the members with the application get a notification.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Group deleted", content = @Content),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The group does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The group already started",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> deleteGroup(@AuthenticationPrincipal AuthenticatedMember member,
+                                         @PathVariable UUID groupId) {
+        var result = savingsGroupCommandService.handle(new DeleteGroupCommand(groupId, member.accountId()));
+        return ResponseEntityAssembler.toNoContentResponseEntityFromResult(result);
     }
 }

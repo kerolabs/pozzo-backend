@@ -20,4 +20,6 @@ public interface InvitationPersistenceRepository extends JpaRepository<Invitatio
     boolean existsByCode(String code);
 
     List<InvitationPersistenceEntity> findAllByGroupIdAndStatus(UUID groupId, InvitationStatus status);
+
+    void deleteAllByGroupId(UUID groupId);
 }

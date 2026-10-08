@@ -10,6 +10,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberComm
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
@@ -31,7 +32,7 @@ import java.util.UUID;
 
 /**
  * Orchestrates the lifecycle of a savings group: create it, adjust its rules, invite and register
- * members, start it and close it when its cycle is over.
+ * members, start it, delete it before it starts and close it when its cycle is over.
  */
 @Service
 @Transactional
@@ -174,6 +175,18 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
                     var started = savingsGroupRepository.save(group);
                     expireActiveInvitations(group.getId());
                     return started;
+                });
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(DeleteGroupCommand command) {
+        var now = clock.instant();
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.delete(now);
+                    invitationRepository.deleteAllByGroupId(group.getId());
+                    savingsGroupRepository.delete(group);
+                    return group;
                 });
     }
 
