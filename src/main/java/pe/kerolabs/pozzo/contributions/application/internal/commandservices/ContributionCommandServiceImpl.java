@@ -3,8 +3,10 @@ package pe.kerolabs.pozzo.contributions.application.internal.commandservices;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.commandservices.ContributionCommandService;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
@@ -21,6 +23,7 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -31,16 +34,22 @@ import java.util.UUID;
 @Transactional
 public class ContributionCommandServiceImpl implements ContributionCommandService {
 
+    static final int MAX_RECEIPT_IMAGE_BYTES = 2 * 1024 * 1024;
+    private static final Set<String> RECEIPT_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
+
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ContributionRepository contributionRepository;
+    private final ReceiptImageStorage receiptImageStorage;
     private final Clock clock;
 
     public ContributionCommandServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository,
-                                          ContributionRepository contributionRepository, Clock clock) {
+                                          ContributionRepository contributionRepository,
+                                          ReceiptImageStorage receiptImageStorage, Clock clock) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
         this.contributionRepository = contributionRepository;
+        this.receiptImageStorage = receiptImageStorage;
         this.clock = clock;
     }
 
@@ -146,6 +155,25 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
                     reviewed.reject(command.requesterAccountId(), command.note(), now);
                     return contributionRepository.save(reviewed);
                 });
+    }
+
+    @Override
+    public Result<Contribution, ApplicationError> handle(AttachReceiptImageCommand command) {
+        if (command.contentType() == null || !RECEIPT_IMAGE_TYPES.contains(command.contentType())) {
+            return Result.failure(ApplicationError.validationError("image", "must be a JPEG, PNG or WebP image"));
+        }
+        if (command.content().length == 0 || command.content().length > MAX_RECEIPT_IMAGE_BYTES) {
+            return Result.failure(ApplicationError.validationError("image", "must weigh up to 2 MB"));
+        }
+        // Only the member who registered the contribution; anyone else gets the same answer as for a missing one.
+        var contribution = contributionRepository.findById(command.contributionId())
+                .filter(found -> command.requesterAccountId().equals(found.getRegisteredByAccountId()));
+        if (contribution.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Contribution", command.contributionId().toString()));
+        }
+        var path = receiptImageStorage.store(command.contributionId(), command.content(), command.contentType());
+        contribution.get().attachReceiptImage(path);
+        return Result.success(contributionRepository.save(contribution.get()));
     }
 
     /**

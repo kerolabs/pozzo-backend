@@ -36,6 +36,7 @@ public class ContributionResourceFromEntityAssembler {
                         .toList(),
                 contribution.getCoveredByMembershipId(),
                 review,
-                contribution.getRegisteredAt());
+                contribution.getRegisteredAt(),
+                contribution.hasReceiptImage());
     }
 }

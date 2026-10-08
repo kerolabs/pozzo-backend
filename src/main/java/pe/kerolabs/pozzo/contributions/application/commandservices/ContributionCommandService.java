@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.contributions.application.commandservices;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
@@ -28,4 +29,9 @@ public interface ContributionCommandService {
     Result<Contribution, ApplicationError> handle(RegisterCoverageCommand command);
 
     Result<Contribution, ApplicationError> handle(ReviewContributionCommand command);
+
+    /**
+     * Keeps the image of the receipt of a contribution; only the member who registered it can.
+     */
+    Result<Contribution, ApplicationError> handle(AttachReceiptImageCommand command);
 }

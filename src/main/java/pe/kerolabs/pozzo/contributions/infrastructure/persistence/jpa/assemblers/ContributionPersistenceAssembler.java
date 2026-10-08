@@ -34,7 +34,7 @@ public final class ContributionPersistenceAssembler {
         contribution.restoreState(entity.getId(), entity.getCycleId(), entity.getPeriodId(), entity.getMembershipId(),
                 entity.getAccountId(), Money.of(entity.getAmount(), currency), entity.getMethod(), entity.getStatus(),
                 receipt, inconsistencies, entity.getCoveredByMembershipId(), entity.getRegisteredByAccountId(),
-                review, entity.getRegisteredAt());
+                review, entity.getRegisteredAt(), entity.getReceiptImagePath());
         return contribution;
     }
 
@@ -54,6 +54,7 @@ public final class ContributionPersistenceAssembler {
         entity.setStatus(contribution.getStatus());
         entity.setRegisteredAt(contribution.getRegisteredAt());
         entity.setRegisteredByAccountId(contribution.getRegisteredByAccountId());
+        entity.setReceiptImagePath(contribution.getReceiptImagePath());
         var receipt = contribution.getReceipt();
         entity.setReceiptOperationNumber(receipt == null ? null : receipt.operationNumber());
         entity.setReceiptPayer(receipt == null ? null : receipt.payerName());

@@ -76,6 +76,9 @@ public class ContributionPersistenceEntity extends AbstractPersistenceEntity {
     @Column(name = "receipt_operation_number", length = 40)
     private String receiptOperationNumber;
 
+    @Column(name = "receipt_image_path", length = 200)
+    private String receiptImagePath;
+
     @Column(name = "receipt_payer", length = 120)
     private String receiptPayer;
 

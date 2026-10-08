@@ -28,7 +28,9 @@ public record ContributionResource(
         @Schema(description = "Fields of the receipt that did not match") List<InconsistencyItem> inconsistencies,
         @Schema(description = "Member who covered it, for coverages", nullable = true) UUID coveredByMembershipId,
         @Schema(description = "Decision of the organizer, if reviewed", nullable = true) ReviewItem review,
-        @Schema(description = "When it was registered") Instant registeredAt) {
+        @Schema(description = "When it was registered") Instant registeredAt,
+        @Schema(description = "True when the image of the receipt was kept; ask for its link to see it")
+        boolean hasReceiptImage) {
 
     @Schema(name = "Receipt", description = "Data of the receipt")
     public record Receipt(String operationNumber, String payerName, String payeeName, BigDecimal amount,

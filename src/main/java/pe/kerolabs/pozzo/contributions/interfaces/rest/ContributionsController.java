@@ -16,15 +16,21 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import pe.kerolabs.pozzo.contributions.application.commandservices.ContributionCommandService;
 import pe.kerolabs.pozzo.contributions.application.queryservices.ContributionQueryService;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ContributionResource;
+import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ReceiptImageResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterCashContributionResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterContributionResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterCoverageResource;
@@ -37,6 +43,7 @@ import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ErrorResponseAssembler;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
+import java.io.IOException;
 import java.util.UUID;
 
 /**
@@ -137,6 +144,50 @@ public class ContributionsController {
         var result = contributionCommandService.handle(ContributionCommandFromResourceAssembler
                 .toCommandFromResource(contributionId, member.accountId(), resource));
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
+    }
+
+    @PutMapping(value = "/contributions/{contributionId}/receipt-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Keep the image of my receipt",
+            description = "Stores a JPEG, PNG or WebP image of up to 2 MB in a private storage, so the member and "
+                    + "the organizer can see it later. Only the member who registered the contribution.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Image kept",
+                    content = @Content(schema = @Schema(implementation = ContributionResource.class))),
+            @ApiResponse(responseCode = "400", description = "Not an image, or too large",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The contribution does not exist or is not the requester's",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The contribution was not made by transfer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "503", description = "The receipt storage did not answer or is not configured",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> attachReceiptImage(@AuthenticationPrincipal AuthenticatedMember member,
+                                                @PathVariable UUID contributionId,
+                                                @RequestPart("image") MultipartFile image) throws IOException {
+        var result = contributionCommandService.handle(new AttachReceiptImageCommand(
+                contributionId, member.accountId(), image.getBytes(), image.getContentType()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
+    }
+
+    @GetMapping("/contributions/{contributionId}/receipt-image")
+    @Operation(summary = "See the image of a receipt",
+            description = "A signed link that works for 15 minutes. Only the member the contribution counts for "
+                    + "and the organizer.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Temporary link",
+                    content = @Content(schema = @Schema(implementation = ReceiptImageResource.class))),
+            @ApiResponse(responseCode = "404", description = "No image, or the requester may not see it",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "503", description = "The receipt storage did not answer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getReceiptImage(@AuthenticationPrincipal AuthenticatedMember member,
+                                             @PathVariable UUID contributionId) {
+        return contributionQueryService.handle(new GetReceiptImageQuery(contributionId, member.accountId()))
+                .<ResponseEntity<?>>map(link -> ResponseEntity.ok(new ReceiptImageResource(link.url(), link.expiresAt())))
+                .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.notFound("ReceiptImage", contributionId.toString())));
     }
 
     @GetMapping("/periods/{periodId}/contributions/pending-review")
