@@ -37,6 +37,15 @@ public class PeriodsController {
         this.cycleCommandService = cycleCommandService;
     }
 
+    /**
+     * Confirms the distribution and delivery of the gathered pot to the designated turn beneficiary.
+     * Transitions the cycle to the next period or closes the cycle upon completing all turns.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param periodId the identifier of the period whose pot is delivered
+     * @return 200 OK with pot delivery details, or error status
+     */
     @PostMapping("/payout")
     @Operation(summary = "Confirm the delivery of the pot",
             description = "Only the organizer, once every member has paid or been covered. Pozzo does not move the "

@@ -36,6 +36,13 @@ public class NotificationsController {
         this.notificationQueryService = notificationQueryService;
     }
 
+    /**
+     * Retrieves the list of the most recent notifications dispatched to the authenticated member.
+     * Returns up to 50 notifications, ordered newest first.
+     *
+     * @param member the authenticated member making the request
+     * @return 200 OK with list of recent notifications
+     */
     @GetMapping
     @Operation(summary = "Get my notifications", description = "The last 50 sent to me, newest first.")
     @ApiResponse(responseCode = "200", description = "My notifications",

@@ -49,6 +49,14 @@ public class ReminderPlansController {
         this.notificationQueryService = notificationQueryService;
     }
 
+    /**
+     * Retrieves the configured automated reminder schedule for a given savings group.
+     * Default schedule sends notifications 3 days, 1 day, and on the cutoff date at 09:00.
+     *
+     * @param member the authenticated member making the request
+     * @param groupId the identifier of the savings group
+     * @return 200 OK with reminder plan details, or 404 if not found
+     */
     @GetMapping
     @Operation(summary = "Get the reminders of a group",
             description = "Members only. Without changes, three days, one day and the same day, at 9:00.")
@@ -67,6 +75,15 @@ public class ReminderPlansController {
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }
 
+    /**
+     * Updates the automated reminder schedule for future periods of the savings group.
+     * Only permitted for the group organizer.
+     *
+     * @param member the authenticated organizer
+     * @param groupId the identifier of the savings group
+     * @param resource payload containing day offsets, dispatch hour, and enabled flag
+     * @return 200 OK with updated reminder plan resource, or error status
+     */
     @PutMapping
     @Operation(summary = "Change the reminders of a group",
             description = "Only the organizer. Applies to the periods that open afterwards.")

@@ -43,6 +43,13 @@ public class PhoneNumberController {
         this.accountCommandService = accountCommandService;
     }
 
+    /**
+     * Requests a verification SMS code to confirm a phone number change for the authenticated member.
+     *
+     * @param member the authenticated member requesting the change
+     * @param resource payload containing the new Peruvian mobile phone number
+     * @return 202 Accepted with code request status, or error status
+     */
     @PostMapping("/codes")
     @Operation(summary = "Request a code for the new number", description = "Sends an SMS code to the new number.")
     @ApiResponses({
@@ -61,6 +68,14 @@ public class PhoneNumberController {
                 result, CodeRequestedResourceFromEntityAssembler::toResourceFromEntity, HttpStatus.ACCEPTED);
     }
 
+    /**
+     * Confirms and updates the member's registered phone number using the received SMS code.
+     * Preserves all group memberships and historical records.
+     *
+     * @param member the authenticated member updating their phone number
+     * @param resource payload containing new phone number and SMS verification code
+     * @return 200 OK with updated profile resource, or error status
+     */
     @PutMapping
     @Operation(summary = "Change my phone number",
             description = "Links the account to the new number once its code is verified. Groups and history stay.")
