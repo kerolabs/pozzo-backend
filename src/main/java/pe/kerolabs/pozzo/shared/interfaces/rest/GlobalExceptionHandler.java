@@ -9,6 +9,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import pe.kerolabs.pozzo.shared.application.exceptions.ExternalServiceException;
@@ -118,6 +119,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResource> handleNoResourceFound(NoResourceFoundException ex) {
         return ErrorResponseAssembler.toErrorResponseFromApplicationError(
                 ApplicationError.notFound("Endpoint", ex.getResourcePath()));
+    }
+
+    /**
+     * The client closed the connection before the response was written, e.g. it gave up waiting. There is
+     * nobody left to answer, so nothing is written and it is not an error of the API.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleClientGone(AsyncRequestNotUsableException ex) {
+        log.debug("Client disconnected before the response was written: {}", ex.getMessage());
     }
 
     /**

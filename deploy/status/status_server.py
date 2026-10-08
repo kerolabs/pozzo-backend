@@ -3,17 +3,28 @@
 
 It only reads: the health check of the backend, the state of its systemd service, the records the deploy
 scripts leave in /opt/pozzo/status, /proc, and the runs of the Deploy workflow on GitHub. Caddy serves it
-under /status behind a password; it listens only on 127.0.0.1. Standard library only.
+under /status; it listens only on 127.0.0.1. Standard library only.
+
+Access goes through a login page: the password is checked once against a PBKDF2 hash and the browser keeps a
+signed, HttpOnly session cookie for 30 days. To make the hash of a new password:
+    python3 status_server.py hash-password
 """
+import base64
+import getpass
+import hashlib
+import hmac
 import json
 import os
 import queue
 import re
+import secrets
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +38,77 @@ STATUS_DIR = Path(os.environ.get("STATUS_DIR", "/opt/pozzo/status"))
 RELEASES_DIR = Path("/opt/pozzo/releases")
 CURRENT_JAR = Path("/opt/pozzo/current.jar")
 PAGE = Path(__file__).with_name("index.html")
+LOGIN_PAGE = Path(__file__).with_name("login.html")
+# {"user": "...", "passwordHash": "pbkdf2_sha256$...", "sessionSecret": "..."}, readable only by this service
+CONFIG = Path(os.environ.get("STATUS_CONFIG", "/etc/pozzo-status/config.json"))
+COOKIE = "pozzo_status"
+SESSION_SECONDS = 30 * 24 * 3600
+PBKDF2_ITERATIONS = 200_000
+
+
+def hash_password(password):
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ITERATIONS)
+    encode = lambda raw: base64.b64encode(raw).decode()  # noqa: E731
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${encode(salt)}${encode(digest)}"
+
+
+def verify_password(password, stored):
+    try:
+        scheme, iterations, salt, digest = stored.split("$")
+        if scheme != "pbkdf2_sha256":
+            return False
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), base64.b64decode(salt), int(iterations))
+        return hmac.compare_digest(actual, base64.b64decode(digest))
+    except (ValueError, TypeError):
+        return False
+
+
+class Auth:
+    """The login of the page: one user, a password hash and a secret to sign the session cookies."""
+
+    def __init__(self):
+        config = json.loads(CONFIG.read_text())
+        self.user = config["user"]
+        self.password_hash = config["passwordHash"]
+        self.secret = config["sessionSecret"].encode()
+        self._failures = {}
+        self._lock = threading.Lock()
+
+    def check(self, user, password):
+        return hmac.compare_digest(user.encode(), self.user.encode()) and verify_password(password, self.password_hash)
+
+    def blocked(self, client):
+        """Ten wrong passwords in fifteen minutes from one address lock it out for the rest of that window."""
+        with self._lock:
+            now = time.time()
+            recent = [moment for moment in self._failures.get(client, []) if now - moment < 900]
+            self._failures[client] = recent
+            return len(recent) >= 10
+
+    def failed(self, client):
+        with self._lock:
+            self._failures.setdefault(client, []).append(time.time())
+
+    def issue(self):
+        expires = int(time.time()) + SESSION_SECONDS
+        payload = f"{self.user}|{expires}"
+        signature = hmac.new(self.secret, payload.encode(), hashlib.sha256).hexdigest()
+        return f"{payload}|{signature}"
+
+    def valid(self, cookie_header):
+        for part in (cookie_header or "").split(";"):
+            name, _, value = part.strip().partition("=")
+            if name != COOKIE:
+                continue
+            try:
+                user, expires, signature = urllib.parse.unquote(value).split("|")
+            except ValueError:
+                return False
+            expected = hmac.new(self.secret, f"{user}|{expires}".encode(), hashlib.sha256).hexdigest()
+            return (hmac.compare_digest(signature, expected) and user == self.user
+                    and expires.isdigit() and int(expires) > time.time())
+        return False
 
 
 class GitHubRuns:
@@ -157,11 +239,51 @@ def deploys():
             "currentRelease": current, "releases": releases}
 
 
+AUTH = None  # loaded at start, so a broken config stops the service instead of opening the page
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "pozzo-status"
 
+    def _client(self):
+        # Caddy, the only way in, puts the address of the browser first in X-Forwarded-For.
+        return (self.headers.get("X-Forwarded-For") or self.client_address[0]).split(",")[0].strip()
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0].rstrip("/") != "/status/login":
+            self._send(404, b"Not found", "text/plain")
+            return
+        client = self._client()
+        if AUTH.blocked(client):
+            self._redirect("/status/login?error=blocked")
+            return
+        length = min(int(self.headers.get("Content-Length") or 0), 4096)
+        form = urllib.parse.parse_qs(self.rfile.read(length).decode(errors="replace"))
+        user = form.get("user", [""])[0]
+        password = form.get("password", [""])[0]
+        if not AUTH.check(user, password):
+            AUTH.failed(client)
+            time.sleep(1)
+            self._redirect("/status/login?error=1")
+            return
+        cookie = (f"{COOKIE}={urllib.parse.quote(AUTH.issue())}; Path=/status; Max-Age={SESSION_SECONDS}; "
+                  "HttpOnly; Secure; SameSite=Strict")
+        self._redirect("/status", cookie)
+
     def do_GET(self):
         path = self.path.split("?", 1)[0].rstrip("/")
+        if path == "/status/login":
+            self._send(200, LOGIN_PAGE.read_bytes(), "text/html; charset=utf-8")
+            return
+        if path == "/status/logout":
+            self._redirect("/status/login", f"{COOKIE}=; Path=/status; Max-Age=0; HttpOnly; Secure; SameSite=Strict")
+            return
+        if not AUTH.valid(self.headers.get("Cookie")):
+            if path.startswith("/status/api/"):
+                self._send(401, b'{"error":"login required"}', "application/json")
+            else:
+                self._redirect("/status/login")
+            return
         if path in ("/status", ""):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif path == "/status/api/summary":
@@ -179,8 +301,19 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         self.wfile.write(body)
+
+    def _redirect(self, location, cookie=None):
+        self.send_response(303)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _stream_logs(self):
         """Server-sent events with the log of the service: the last 300 lines, then each new one."""
@@ -223,4 +356,10 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    if sys.argv[1:] == ["hash-password"]:
+        # Reads the password from the terminal, or from standard input when it is piped.
+        password = getpass.getpass("Password: ") if sys.stdin.isatty() else sys.stdin.readline().rstrip("\n")
+        print(hash_password(password))
+        sys.exit(0)
+    AUTH = Auth()
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
