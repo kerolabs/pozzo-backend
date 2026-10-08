@@ -24,6 +24,7 @@ public interface ReceiptImageStorage {
      *
      * @param path     the path returned by {@link #store}
      * @param validity how long the link works
+     * @return temporary signed link with access URL and expiry
      */
     ReceiptImageLink link(String path, Duration validity);
 }

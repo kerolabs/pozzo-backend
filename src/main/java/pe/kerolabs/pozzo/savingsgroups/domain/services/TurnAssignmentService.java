@@ -7,8 +7,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Builds the collection order of a savings group, which the group accepts with
- * {@link SavingsGroup#assignTurns}.
+ * Domain service contract for constructing the turn collection sequence of a savings group.
+ * Supports both pseudo-random reproducible draws and consensual custom orderings.
+ * Once generated, the group accepts the collection sequence via {@link SavingsGroup#assignTurns}.
  */
 public interface TurnAssignmentService {
 

@@ -13,9 +13,18 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
 public interface TurnCommandService {
 
     /**
-     * Orders the members at random with a new seed; running it again repeats the draw.
+     * Orders the members at random using a newly generated seed; running it again repeats the draw.
+     *
+     * @param command command containing group ID and organizer account ID
+     * @return the savings group aggregate with updated turns, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(AssignTurnsByDrawCommand command);
 
+    /**
+     * Sets a manually agreed turn order for all enrolled members.
+     *
+     * @param command command containing group ID, organizer account ID, and explicit membership ID list
+     * @return the savings group aggregate with updated turns, or an error
+     */
     Result<SavingsGroup, ApplicationError> handle(AssignTurnsAgreedCommand command);
 }

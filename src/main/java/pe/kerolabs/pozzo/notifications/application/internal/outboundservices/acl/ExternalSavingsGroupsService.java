@@ -17,10 +17,24 @@ public class ExternalSavingsGroupsService {
         this.savingsGroupsContextFacade = savingsGroupsContextFacade;
     }
 
+    /**
+     * Verifies whether an account is an enrolled member in the specified savings group.
+     *
+     * @param groupId the savings group identifier
+     * @param accountId the member account identifier
+     * @return true if the account is an active member
+     */
     public boolean isMember(UUID groupId, UUID accountId) {
         return savingsGroupsContextFacade.isMember(groupId, accountId);
     }
 
+    /**
+     * Verifies whether an account is the organizer of the specified savings group.
+     *
+     * @param groupId the savings group identifier
+     * @param accountId the member account identifier
+     * @return true if the account is the group organizer
+     */
     public boolean isOrganizer(UUID groupId, UUID accountId) {
         return savingsGroupsContextFacade.isOrganizer(groupId, accountId);
     }

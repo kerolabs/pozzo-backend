@@ -23,12 +23,21 @@ public class ExternalIamService {
         this.iamContextFacade = iamContextFacade;
     }
 
+    /**
+     * Resolves the profile display name of a member from the IAM context.
+     *
+     * @param accountId the account identifier
+     * @return optional display name, or empty if account not found
+     */
     public Optional<String> fetchDisplayName(UUID accountId) {
         return iamContextFacade.fetchDisplayNameByAccountId(accountId);
     }
 
     /**
-     * The photo of each member of the group that uses the application and has one, by account.
+     * Retrieves the map of profile avatar photo URLs for all app users in the given savings group.
+     *
+     * @param group the savings group whose members are queried
+     * @return map of account IDs to their profile photo URLs
      */
     public Map<UUID, String> fetchPhotoUrls(SavingsGroup group) {
         var accountIds = group.activeMemberships().stream()
