@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.MembershipResou
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -15,7 +16,8 @@ import java.util.UUID;
  */
 public class MembershipResourceFromEntityAssembler {
 
-    public static List<MembershipResource> toResourcesFromEntity(SavingsGroup group, UUID requesterId) {
+    public static List<MembershipResource> toResourcesFromEntity(SavingsGroup group, UUID requesterId,
+                                                              Map<UUID, String> photosByAccount) {
         var requesterIsOrganizer = group.isOrganizer(requesterId);
         return group.activeMemberships().stream()
                 .sorted(Comparator.comparing((Membership membership) -> !membership.belongsTo(group.getOrganizerId()))
@@ -31,7 +33,8 @@ public class MembershipResourceFromEntityAssembler {
                                 ? membership.getPhone().replace("+51", "")
                                 : null,
                         group.turnOf(membership.getId()).map(TurnSlot::turnNumber).orElse(null),
-                        membership.getJoinedAt()))
+                        membership.getJoinedAt(),
+                        membership.getMemberId() == null ? null : photosByAccount.get(membership.getMemberId())))
                 .toList();
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.savingsgroups.application.commandservices.TurnCommandService;
+import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl.ExternalIamService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsAgreedCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsByDrawCommand;
@@ -43,10 +44,13 @@ public class TurnsController {
 
     private final TurnCommandService turnCommandService;
     private final SavingsGroupQueryService savingsGroupQueryService;
+    private final ExternalIamService externalIamService;
 
-    public TurnsController(TurnCommandService turnCommandService, SavingsGroupQueryService savingsGroupQueryService) {
+    public TurnsController(TurnCommandService turnCommandService, SavingsGroupQueryService savingsGroupQueryService,
+                           ExternalIamService externalIamService) {
         this.turnCommandService = turnCommandService;
         this.savingsGroupQueryService = savingsGroupQueryService;
+        this.externalIamService = externalIamService;
     }
 
     @PostMapping("/draw")
@@ -65,7 +69,8 @@ public class TurnsController {
                                        @PathVariable UUID groupId) {
         var result = turnCommandService.handle(new AssignTurnsByDrawCommand(groupId, member.accountId()));
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
-                group -> TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
+                group -> TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
                 HttpStatus.OK);
     }
 
@@ -86,7 +91,8 @@ public class TurnsController {
         var result = turnCommandService.handle(
                 new AssignTurnsAgreedCommand(groupId, member.accountId(), resource.order()));
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
-                group -> TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
+                group -> TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
                 HttpStatus.OK);
     }
 
@@ -102,7 +108,8 @@ public class TurnsController {
                                       @PathVariable UUID groupId) {
         return savingsGroupQueryService.handle(new GetTurnCalendarQuery(groupId, member.accountId()))
                 .<ResponseEntity<?>>map(group -> ResponseEntity.ok(
-                        TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId())))
+                        TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group))))
                 .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }

@@ -21,5 +21,6 @@ public record MembershipResource(
         @Schema(description = "Phone of a member without the application; only the organizer sees it",
                 nullable = true) String phoneNumber,
         @Schema(description = "Turn of the member, once assigned", nullable = true) Integer turnNumber,
-        @Schema(description = "When the member joined") Instant joinedAt) {
+        @Schema(description = "When the member joined") Instant joinedAt,
+        @Schema(description = "Profile photo of a member who uses the application", nullable = true) String photoUrl) {
 }

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.savingsgroups.application.commandservices.SavingsGroupCommandService;
+import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl.ExternalIamService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
@@ -58,13 +59,16 @@ public class MembershipsController {
     private final SavingsGroupCommandService savingsGroupCommandService;
     private final SavingsGroupQueryService savingsGroupQueryService;
     private final InvitationLinkBuilder invitationLinkBuilder;
+    private final ExternalIamService externalIamService;
 
     public MembershipsController(SavingsGroupCommandService savingsGroupCommandService,
                                  SavingsGroupQueryService savingsGroupQueryService,
-                                 InvitationLinkBuilder invitationLinkBuilder) {
+                                 InvitationLinkBuilder invitationLinkBuilder,
+                                 ExternalIamService externalIamService) {
         this.savingsGroupCommandService = savingsGroupCommandService;
         this.savingsGroupQueryService = savingsGroupQueryService;
         this.invitationLinkBuilder = invitationLinkBuilder;
+        this.externalIamService = externalIamService;
     }
 
     @PostMapping("/groups/{groupId}/invitations")
@@ -156,7 +160,8 @@ public class MembershipsController {
                                         @PathVariable UUID groupId) {
         return savingsGroupQueryService.handle(new GetMembersQuery(groupId, member.accountId()))
                 .<ResponseEntity<?>>map(group -> ResponseEntity.ok(
-                        MembershipResourceFromEntityAssembler.toResourcesFromEntity(group, member.accountId())))
+                        MembershipResourceFromEntityAssembler.toResourcesFromEntity(
+                                group, member.accountId(), externalIamService.fetchPhotoUrls(group))))
                 .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
                         ApplicationError.notFound("SavingsGroup", groupId.toString())));
     }
@@ -178,7 +183,8 @@ public class MembershipsController {
         var result = savingsGroupCommandService.handle(
                 GroupCommandFromResourceAssembler.toCommandFromResource(groupId, member.accountId(), resource));
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
-                group -> MembershipResourceFromEntityAssembler.toResourcesFromEntity(group, member.accountId()),
+                group -> MembershipResourceFromEntityAssembler.toResourcesFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
                 HttpStatus.CREATED);
     }
 

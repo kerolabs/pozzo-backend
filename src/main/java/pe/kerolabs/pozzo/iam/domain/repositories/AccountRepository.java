@@ -3,6 +3,8 @@ package pe.kerolabs.pozzo.iam.domain.repositories;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,6 +16,8 @@ public interface AccountRepository {
     Optional<Account> findById(UUID id);
 
     Optional<Account> findByPhoneNumber(PhoneNumber phoneNumber);
+
+    List<Account> findAllByIds(Collection<UUID> ids);
 
     boolean existsByPhoneNumber(PhoneNumber phoneNumber);
 
