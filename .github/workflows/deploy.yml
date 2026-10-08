@@ -16,6 +16,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Each run is listed under Deployments on the repository page, with its state and a link to the health check.
+    environment:
+      name: production
+      url: https://api-kerolabs.duckdns.org/actuator/health
 
     steps:
       - uses: actions/checkout@v4
@@ -31,9 +35,10 @@ jobs:
 
       # The deploy key may only run pozzo-deploy on the server (forced in its authorized_keys): it receives
       # the jar on standard input, and root puts it in place, restarts the service and waits until
-      # /actuator/health answers UP. If the new version does not start, the server goes back to the
-      # previous one and this step fails.
+      # /actuator/health answers UP, sending the log of the start here meanwhile. If the new version does not
+      # start, the server goes back to the previous one and this step fails.
       - name: Hand the jar to the server
+        id: deploy
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
@@ -48,8 +53,27 @@ jobs:
           jar=$(ls target/*.jar | grep -v -- '-plain' | head -n 1)
           echo "Sending $(basename "$jar") ($(du -h "$jar" | cut -f1))"
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o ServerAliveInterval=30 "$DEPLOY_USER@$DEPLOY_HOST" < "$jar"
+            -o ServerAliveInterval=30 "$DEPLOY_USER@$DEPLOY_HOST" < "$jar" 2>&1 | tee deploy.log
+          exit "${PIPESTATUS[0]}"
 
       - name: Remove the key
         if: always()
         run: rm -f ~/.ssh/deploy_key
+
+      # A short summary at the top of the run page: what was deployed and how it ended.
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy to Oracle Cloud"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA::7}\` $(git log -1 --format=%s | sed 's/|/\\|/g') |"
+            echo "| By | ${GITHUB_ACTOR} |"
+            echo "| Result | ${{ steps.deploy.outcome == 'success' && '✅ UP' || '❌ Failed' }} |"
+            if [ -f deploy.log ]; then
+              echo "| Server | $(grep -E '^(UP:|.* did not come up|Rolled back|No previous release)' deploy.log | tr '\n' ' ' | sed 's/|/\\|/g') |"
+            fi
+            echo "| Health | https://api-kerolabs.duckdns.org/actuator/health |"
+          } >> "$GITHUB_STEP_SUMMARY"

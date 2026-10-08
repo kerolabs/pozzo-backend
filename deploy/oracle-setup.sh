@@ -170,16 +170,23 @@ healthy() {
 }
 
 ln -sfn "$release" /opt/pozzo/current.jar
+started_at=$(date +%s)
+since=$(date '+%Y-%m-%d %H:%M:%S')
 systemctl restart pozzo
-echo "Started $name, waiting for /actuator/health..."
+echo "Started $name, waiting for /actuator/health. Log of the start:"
+# The log of the service goes to whoever deployed (the workflow of GitHub) while it starts
+journalctl -u pozzo -f -o cat --since "$since" &
+follower=$!
+trap 'kill $follower 2>/dev/null || true' EXIT
 if healthy; then
-  echo "UP: $name is serving"
+  kill $follower 2>/dev/null || true
+  echo "UP: $name is serving, after $(( $(date +%s) - started_at )) s"
   # Keep the three newest releases, so there is always one to go back to
   ls -1t /opt/pozzo/releases/pozzo-*.jar | tail -n +4 | xargs -r rm -f
   exit 0
 fi
-echo "$name did not come up; last lines of its log:" >&2
-journalctl -u pozzo -n 40 --no-pager >&2 || true
+kill $follower 2>/dev/null || true
+echo "$name did not come up after $(( $(date +%s) - started_at )) s" >&2
 if [ -n "$previous" ] && [ -f "$previous" ] && [ "$previous" != "$release" ]; then
   ln -sfn "$previous" /opt/pozzo/current.jar
   systemctl restart pozzo
