@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.iam.application.commandservices;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.VerificationCode;
 import pe.kerolabs.pozzo.iam.domain.model.commands.ChangePhoneNumberCommand;
+import pe.kerolabs.pozzo.iam.domain.model.commands.ChangeProfilePhotoCommand;
 import pe.kerolabs.pozzo.iam.domain.model.commands.RequestPhoneChangeCodeCommand;
 import pe.kerolabs.pozzo.iam.domain.model.commands.UpdateProfileCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -20,6 +21,13 @@ public interface AccountCommandService {
      * another account
      */
     Result<Account, ApplicationError> handle(UpdateProfileCommand command);
+
+    /**
+     * Stores a new profile photo, or removes it, and deletes the previous one.
+     *
+     * @return the updated account, or an error when the image is not JPEG, PNG or WebP or weighs more than 2 MB
+     */
+    Result<Account, ApplicationError> handle(ChangeProfilePhotoCommand command);
 
     /**
      * Sends an SMS code to the number the member wants to switch to.
