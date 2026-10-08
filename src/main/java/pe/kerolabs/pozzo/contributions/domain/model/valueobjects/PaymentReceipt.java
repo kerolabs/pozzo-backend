@@ -10,7 +10,7 @@ import java.util.Locale;
 
 /**
  * Data read from a Yape or Plin receipt on the phone (with ML Kit) and confirmed by the member.
- * The image itself never reaches the server.
+ * The image is validated on the phone; it is kept apart, in a private storage, once the contribution exists.
  *
  * @param operationNumber the operation number printed on the receipt
  * @param payerName       who paid, when the receipt shows it
