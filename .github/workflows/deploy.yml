@@ -1,0 +1,55 @@
+name: Deploy
+
+# Every push to main builds the backend and puts it on the Oracle Cloud instance.
+# The instance does not compile anything: it only receives the jar through SSH.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits for the one in progress instead of cutting it halfway.
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build the jar
+        run: ./mvnw -B -q package -DskipTests
+
+      # The deploy key may only run pozzo-deploy on the server (forced in its authorized_keys): it receives
+      # the jar on standard input, and root puts it in place, restarts the service and waits until
+      # /actuator/health answers UP. If the new version does not start, the server goes back to the
+      # previous one and this step fails.
+      - name: Hand the jar to the server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Only the host key checked when the secret was created is trusted.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          jar=$(ls target/*.jar | grep -v -- '-plain' | head -n 1)
+          echo "Sending $(basename "$jar") ($(du -h "$jar" | cut -f1))"
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "$DEPLOY_USER@$DEPLOY_HOST" < "$jar"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
