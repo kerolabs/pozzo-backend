@@ -52,8 +52,9 @@ jobs:
           printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           jar=$(ls target/*.jar | grep -v -- '-plain' | head -n 1)
           echo "Sending $(basename "$jar") ($(du -h "$jar" | cut -f1))"
+          # The run and the commit go as the command, so the status page of the server can tell deploys apart.
           ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
-            -o ServerAliveInterval=30 "$DEPLOY_USER@$DEPLOY_HOST" < "$jar" 2>&1 | tee deploy.log
+            -o ServerAliveInterval=30 "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_RUN_ID $GITHUB_SHA" < "$jar" 2>&1 | tee deploy.log
           exit "${PIPESTATUS[0]}"
 
       - name: Remove the key
@@ -76,4 +77,5 @@ jobs:
               echo "| Server | $(grep -E '^(UP:|.* did not come up|Rolled back|No previous release)' deploy.log | tr '\n' ' ' | sed 's/|/\\|/g') |"
             fi
             echo "| Health | https://api-kerolabs.duckdns.org/actuator/health |"
+            echo "| Status | https://api-kerolabs.duckdns.org/status |"
           } >> "$GITHUB_STEP_SUMMARY"
