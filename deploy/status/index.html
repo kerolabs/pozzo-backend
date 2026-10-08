@@ -3,291 +3,566 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Estado del backend · Pozzo</title>
+  <title>Estado · Pozzo backend</title>
   <meta name="robots" content="noindex">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* Hallmark · genre: modern-minimal · macrostructure: app dashboard (Workbench family) · theme: custom monochrome
+     * paper oklch(100% 0 0) / dark oklch(14.5% 0 0) · ink oklch(16% 0 0) · accent: none (status hues only)
+     * type: Geist 400–600 + Geist Mono · nav: tabbed top bar · footer: none (app page)
+     * pre-emit critique: P4 H5 E4 S5 R5 V4 */
     :root {
       color-scheme: light;
-      --bg: #FFF8F6; --surface: #FFF1ED; --surface-2: #FFE9E4; --line: #DEC0B8;
-      --text: #241916; --muted: #57423C; --primary: #943015; --primary-soft: #FFDBD1;
-      --ok: #426900; --ok-soft: #C2F280; --warn: #974806; --warn-soft: #FFDBC8;
-      --bad: #BA1A1A; --bad-soft: #FFDAD6; --log-bg: #1B110E; --log-text: #F3DED9;
+      --color-paper: oklch(100% 0 0);
+      --color-paper-2: oklch(98.2% 0 0);
+      --color-paper-3: oklch(96% 0 0);
+      --color-rule: oklch(92.5% 0 0);
+      --color-rule-strong: oklch(84% 0 0);
+      --color-ink: oklch(16% 0 0);
+      --color-ink-2: oklch(44% 0 0);
+      --color-ink-3: oklch(58% 0 0);
+      --color-on-ink: oklch(100% 0 0);
+      --color-ok: oklch(62% 0.17 152);
+      --color-busy: oklch(74% 0.16 70);
+      --color-bad: oklch(56% 0.2 27);
+      --color-bad-soft: oklch(96% 0.025 27);
+      --color-busy-soft: oklch(96% 0.04 80);
+      --color-focus: oklch(56% 0.19 255);
+      --color-link: oklch(48% 0.17 255);
+      --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "Geist Mono", ui-monospace, monospace;
+      --space-3xs: 0.125rem; --space-2xs: 0.25rem; --space-xs: 0.5rem; --space-sm: 0.75rem; --space-md: 1rem;
+      --space-lg: 1.5rem; --space-xl: 2rem; --space-2xl: 3rem;
+      --text-2xs: 0.6875rem; --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.875rem; --text-lg: 1rem;
+      --text-xl: 1.25rem; --text-2xl: 1.75rem; --text-3xl: 2.25rem;
+      --radius: 8px; --radius-lg: 12px; --radius-pill: 999px;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --dur-short: 150ms;
+      --bar-h: 3.5rem;
+      --tabs-h: 2.75rem;
     }
     @media (prefers-color-scheme: dark) {
       :root {
         color-scheme: dark;
-        --bg: #1B110E; --surface: #241916; --surface-2: #2F2320; --line: #57423C;
-        --text: #F3DED9; --muted: #DEC0B8; --primary: #FFB4A1; --primary-soft: #5C2414;
-        --ok: #A7D567; --ok-soft: #2A4200; --warn: #FFB68A; --warn-soft: #5A2A00;
-        --bad: #FFB4AB; --bad-soft: #690005; --log-bg: #120A08; --log-text: #F3DED9;
+        --color-paper: oklch(14.5% 0 0);
+        --color-paper-2: oklch(17% 0 0);
+        --color-paper-3: oklch(21% 0 0);
+        --color-rule: oklch(26% 0 0);
+        --color-rule-strong: oklch(35% 0 0);
+        --color-ink: oklch(96% 0 0);
+        --color-ink-2: oklch(72% 0 0);
+        --color-ink-3: oklch(56% 0 0);
+        --color-on-ink: oklch(14.5% 0 0);
+        --color-ok: oklch(72% 0.17 152);
+        --color-busy: oklch(80% 0.15 75);
+        --color-bad: oklch(70% 0.19 27);
+        --color-bad-soft: oklch(24% 0.06 27);
+        --color-busy-soft: oklch(25% 0.05 75);
+        --color-focus: oklch(68% 0.16 255);
+        --color-link: oklch(74% 0.13 255);
       }
     }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 "Plus Jakarta Sans", system-ui, sans-serif; }
-    main { max-width: 1120px; margin: 0 auto; padding: 24px 16px 48px; display: grid; gap: 16px; }
-    header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
-    h1 { margin: 0; font-size: 24px; } h2 { margin: 0 0 12px; font-size: 17px; }
-    .muted { color: var(--muted); } .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 13px; }
-    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 20px; min-width: 0; }
-    .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-weight: 700; }
-    .pill::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
-    .ok { background: var(--ok-soft); color: var(--ok); } .warn { background: var(--warn-soft); color: var(--warn); }
-    .bad { background: var(--bad-soft); color: var(--bad); } .idle { background: var(--surface-2); color: var(--muted); }
-    .big { font-size: 28px; font-weight: 700; }
-    dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; } dt { color: var(--muted); } dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
-    .bar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; margin: 4px 0 10px; }
-    .bar > span { display: block; height: 100%; background: var(--primary); }
-    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-    .step { border-radius: 14px; padding: 12px; background: var(--surface-2); color: var(--muted); }
-    .step b { display: block; color: var(--text); }
-    .step.done { background: var(--ok-soft); color: var(--ok); } .step.done b { color: var(--ok); }
-    .step.now { background: var(--primary-soft); color: var(--primary); } .step.now b { color: var(--primary); }
-    .step.now::after { content: " ●"; animation: blink 1s infinite; }
-    .step.failed { background: var(--bad-soft); color: var(--bad); } .step.failed b { color: var(--bad); }
-    @keyframes blink { 50% { opacity: .2; } }
-    table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-    th { color: var(--muted); font-weight: 600; font-size: 13px; }
-    .table-wrap { overflow-x: auto; }
-    a { color: var(--primary); }
-    .tag { padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-    .logs-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .logs-head h2 { margin: 0; }
-    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
-    input, button { font: inherit; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--text); padding: 6px 14px; }
-    button { cursor: pointer; font-weight: 600; } button[aria-pressed="true"] { background: var(--primary); color: var(--bg); border-color: var(--primary); }
-    #logs { background: var(--log-bg); color: var(--log-text); border-radius: 14px; height: 460px; overflow: auto; padding: 12px; margin: 0;
-      font: 12.5px/1.55 "JetBrains Mono", ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-    #logs .e { color: #FF8A80; } #logs .w { color: #FFC46B; } #logs .s { color: #B6F27A; font-weight: 600; } #logs .t { color: #A58E87; }
-    @media (max-width: 640px) { .steps { grid-template-columns: repeat(2, 1fr); } #logs { height: 360px; } }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: clip; }
+    body {
+      margin: 0; background: var(--color-paper); color: var(--color-ink);
+      font: 400 var(--text-md)/1.5 var(--font-body); -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 3px; }
+    :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 4px; }
+    .mono { font-family: var(--font-mono); }
+    .muted { color: var(--color-ink-2); }
+    .faint { color: var(--color-ink-3); }
+
+    /* Top bar and tabs */
+    .bar {
+      position: sticky; top: 0; z-index: 2; background: var(--color-paper);
+      border-bottom: 1px solid var(--color-rule);
+    }
+    .bar-inner, .tabs, .page { max-width: 75rem; margin: 0 auto; padding: 0 var(--space-lg); }
+    .bar-inner { height: var(--bar-h); display: flex; align-items: center; gap: var(--space-sm); }
+    .crumbs { display: flex; align-items: center; gap: var(--space-xs); min-width: 0; font-weight: 500; }
+    .crumbs .slash { color: var(--color-rule-strong); font-weight: 400; font-size: var(--text-xl); }
+    .crumbs .wordmark { font-weight: 600; letter-spacing: -0.02em; }
+    .env {
+      font-size: var(--text-xs); font-weight: 500; padding: var(--space-3xs) var(--space-xs);
+      border: 1px solid var(--color-rule); border-radius: var(--radius-pill); color: var(--color-ink-2);
+      white-space: nowrap;
+    }
+    .bar-tools { margin-left: auto; display: flex; align-items: center; gap: var(--space-sm); }
+    .domain { font-size: var(--text-sm); color: var(--color-ink-2); white-space: nowrap; }
+    .tabs { display: flex; gap: var(--space-lg); height: var(--tabs-h); overflow-x: auto; scrollbar-width: none; }
+    .tab {
+      display: flex; align-items: center; font-size: var(--text-md); color: var(--color-ink-2);
+      border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; cursor: pointer;
+      background: none; border-top: 0; border-left: 0; border-right: 0; padding: 0; font-family: inherit;
+    }
+    .tab:hover { color: var(--color-ink); }
+    .tab[aria-selected="true"] { color: var(--color-ink); border-bottom-color: var(--color-ink); }
+
+    /* Buttons */
+    .btn {
+      font: 500 var(--text-sm) var(--font-body); height: 2rem; padding: 0 var(--space-sm); border-radius: var(--radius);
+      border: 1px solid var(--color-rule-strong); background: var(--color-paper); color: var(--color-ink); cursor: pointer;
+      display: inline-flex; align-items: center; gap: var(--space-xs); white-space: nowrap;
+      transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out);
+    }
+    .btn:hover { background: var(--color-paper-3); text-decoration: none; }
+    .btn:active { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn[aria-pressed="true"] { background: var(--color-ink); color: var(--color-on-ink); border-color: var(--color-ink); }
+
+    /* Status dots */
+    .dot { width: 0.625rem; height: 0.625rem; border-radius: 50%; flex: none; background: var(--color-ink-3); }
+    .dot.ok { background: var(--color-ok); }
+    .dot.busy { background: var(--color-busy); animation: pulse 1.4s var(--ease-out) infinite; }
+    .dot.bad { background: var(--color-bad); }
+    @keyframes pulse { 50% { opacity: 0.35; } }
+    .state { display: inline-flex; align-items: center; gap: var(--space-xs); font-weight: 500; white-space: nowrap; }
+
+    /* Page */
+    .page { padding-top: var(--space-xl); padding-bottom: var(--space-2xl); }
+    [role="tabpanel"][hidden] { display: none; }
+    .page-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    h1 { margin: 0; font-size: var(--text-2xl); font-weight: 600; letter-spacing: -0.03em; }
+    h2 { margin: 0; font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.015em; }
+    .section { margin-top: var(--space-2xl); }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-sm); }
+    .section-head a { font-size: var(--text-sm); color: var(--color-ink-2); }
+
+    .panel { border: 1px solid var(--color-rule); border-radius: var(--radius-lg); background: var(--color-paper); min-width: 0; }
+
+    /* Production overview */
+    .overview { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    .vital { padding: var(--space-lg); border-right: 1px solid var(--color-rule); background: var(--color-paper-2);
+      border-radius: var(--radius-lg) 0 0 var(--radius-lg); display: flex; flex-direction: column; gap: var(--space-md); min-width: 0; }
+    .vital-label { font-size: var(--text-sm); color: var(--color-ink-2); }
+    .vital-value { font-size: var(--text-3xl); font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; }
+    .spark { width: 100%; height: 4.5rem; display: block; }
+    .spark polyline { fill: none; stroke: var(--color-ink); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+    .spark line { stroke: var(--color-rule); stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .facts { padding: var(--space-lg); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-lg) var(--space-xl); align-content: start; }
+    .fact { min-width: 0; }
+    .fact dt { font-size: var(--text-sm); color: var(--color-ink-2); margin-bottom: var(--space-2xs); }
+    .fact dd { margin: 0; overflow-wrap: anywhere; }
+    .fact.wide { grid-column: 1 / -1; }
+    .commit { display: flex; align-items: baseline; gap: var(--space-xs); min-width: 0; }
+    .commit-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .branch { font: 500 var(--text-xs) var(--font-mono); padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-pill);
+      background: var(--color-paper-3); white-space: nowrap; }
+
+    /* Deploy in progress */
+    .progress { padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-lg); background: var(--color-busy-soft); border-color: transparent; }
+    .progress-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs) var(--space-md); justify-content: space-between; }
+    .segments { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-xs); margin-top: var(--space-md); }
+    .segment { font-size: var(--text-xs); color: var(--color-ink-2); }
+    .segment::before { content: ""; display: block; height: 4px; border-radius: 2px; background: var(--color-rule-strong); margin-bottom: var(--space-xs); }
+    .segment.done::before { background: var(--color-ink); }
+    .segment.now::before { background: var(--color-busy); animation: pulse 1.4s var(--ease-out) infinite; }
+    .segment.now { color: var(--color-ink); font-weight: 500; }
+
+    /* Resources */
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .metric { padding: var(--space-md) var(--space-lg); border-right: 1px solid var(--color-rule); min-width: 0; }
+    .metric:last-child { border-right: 0; }
+    .metric-value { font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.02em; margin: var(--space-2xs) 0; }
+    .meter { height: 4px; border-radius: 2px; background: var(--color-paper-3); overflow: hidden; }
+    .meter span { display: block; height: 100%; background: var(--color-ink); border-radius: 2px; }
+    .metrics-foot { padding: var(--space-sm) var(--space-lg); border-top: 1px solid var(--color-rule); font-size: var(--text-sm); color: var(--color-ink-2); }
+
+    /* Deployment rows */
+    .rows { list-style: none; margin: 0; padding: 0; }
+    .row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.2fr) minmax(0, 1.4fr) auto; gap: var(--space-md);
+      align-items: center; padding: var(--space-md) var(--space-lg); border-bottom: 1px solid var(--color-rule); }
+    .row:last-child { border-bottom: 0; }
+    .row:hover { background: var(--color-paper-2); }
+    .row-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .row-sub { font-size: var(--text-sm); color: var(--color-ink-2); display: flex; gap: var(--space-xs); align-items: center; min-width: 0; }
+    .row-time { font-size: var(--text-sm); color: var(--color-ink-2); text-align: right; }
+    .row-link { font-size: var(--text-sm); color: var(--color-link); white-space: nowrap; }
+    .empty { padding: var(--space-xl) var(--space-lg); color: var(--color-ink-2); }
+    .note { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-ink-3); }
+
+    /* Logs */
+    .log-tools { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; margin-bottom: var(--space-sm); }
+    .search { flex: 1 1 14rem; min-width: 0; height: 2rem; padding: 0 var(--space-sm); font: var(--text-sm) var(--font-body);
+      border: 1px solid var(--color-rule-strong); border-radius: var(--radius); background: var(--color-paper); color: var(--color-ink); }
+    .search:hover { border-color: var(--color-ink-3); }
+    .seg { display: inline-flex; border: 1px solid var(--color-rule-strong); border-radius: var(--radius); overflow: hidden; }
+    .seg button { font: 500 var(--text-sm) var(--font-body); height: 2rem; padding: 0 var(--space-sm); border: 0; cursor: pointer;
+      background: var(--color-paper); color: var(--color-ink-2); border-right: 1px solid var(--color-rule-strong); }
+    .seg button:last-child { border-right: 0; }
+    .seg button:hover { color: var(--color-ink); background: var(--color-paper-3); }
+    .seg button[aria-pressed="true"] { background: var(--color-paper-3); color: var(--color-ink); }
+    .live { display: inline-flex; align-items: center; gap: var(--space-xs); font-size: var(--text-sm); color: var(--color-ink-2); margin-left: auto; }
+    .log {
+      height: calc(100dvh - var(--bar-h) - var(--tabs-h) - 11rem); min-height: 22rem; overflow: auto;
+      font: var(--text-xs)/1.65 var(--font-mono); background: var(--color-paper-2);
+    }
+    .line { display: grid; grid-template-columns: 5.5rem 3.25rem minmax(0, 1fr); gap: var(--space-sm);
+      padding: 0 var(--space-md); border-bottom: 1px solid transparent; }
+    .line:hover { background: var(--color-paper-3); }
+    .line .t { color: var(--color-ink-3); }
+    .line .lv { font-weight: 500; color: var(--color-ink-3); }
+    .line .msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .line.err { background: var(--color-bad-soft); }
+    .line.err .lv, .line.err .msg { color: var(--color-bad); }
+    .line.warn .lv { color: var(--color-busy); }
+    .line.cont .t, .line.cont .lv { visibility: hidden; }
+
+    @media (max-width: 52rem) {
+      .overview { grid-template-columns: minmax(0, 1fr); }
+      .vital { border-right: 0; border-bottom: 1px solid var(--color-rule); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n + 2) { border-bottom: 1px solid var(--color-rule); }
+      .row { grid-template-columns: minmax(0, 1fr) auto; }
+      .row .row-status { grid-column: 1; grid-row: 2; }
+      .row .row-time { grid-column: 2; grid-row: 1; }
+      .row .row-commit { display: none; }
+      .row .row-link { grid-column: 2; grid-row: 2; text-align: right; }
+      .domain { display: none; }
+    }
+    @media (max-width: 30rem) {
+      .bar-inner, .tabs, .page { padding: 0 var(--space-md); }
+      .page { padding-top: var(--space-lg); }
+      .facts { grid-template-columns: minmax(0, 1fr); }
+      .segments { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .line { grid-template-columns: 4.75rem minmax(0, 1fr); }
+      .line .lv { display: none; }
+      .crumbs .project { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dot.busy, .segment.now::before { animation: none; }
+      .btn, .search, .tab { transition: none; }
+    }
   </style>
 </head>
 <body>
-<main>
-  <header>
-    <div>
-      <h1>Estado del backend</h1>
-      <div class="muted">Pozzo · <span id="host"></span> · actualizado <span id="updated">…</span></div>
-    </div>
-    <span id="state" class="pill idle">Cargando</span>
-  </header>
-
-  <section class="card" id="deploy-card">
-    <h2>Despliegue</h2>
-    <div id="deploy-title" class="muted">Sin despliegues en curso.</div>
-    <div class="steps" id="steps"></div>
-  </section>
-
-  <section class="grid">
-    <div class="card">
-      <h2>Backend</h2>
-      <dl>
-        <dt>Health</dt><dd id="health">…</dd>
-        <dt>Encendido desde</dt><dd id="since">…</dd>
-        <dt>Versión</dt><dd id="release" class="mono">…</dd>
-        <dt>Commit</dt><dd id="commit">…</dd>
-        <dt>Memoria de Java</dt><dd id="java-memory">…</dd>
-        <dt>Reinicios</dt><dd id="restarts">…</dd>
-      </dl>
-    </div>
-    <div class="card">
-      <h2>Servidor</h2>
-      <div class="muted">Memoria <span id="mem-text"></span></div><div class="bar"><span id="mem-bar"></span></div>
-      <div class="muted">Swap <span id="swap-text"></span></div><div class="bar"><span id="swap-bar"></span></div>
-      <div class="muted">Disco <span id="disk-text"></span></div><div class="bar"><span id="disk-bar"></span></div>
-      <dl><dt>Carga (1, 5, 15 min)</dt><dd id="load">…</dd><dt>Servidor encendido</dt><dd id="uptime">…</dd></dl>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Historial de despliegues</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Cuándo</th><th>Commit</th><th>Arranque</th><th>Resultado</th></tr></thead>
-        <tbody id="history"><tr><td colspan="4" class="muted">Cargando…</td></tr></tbody>
-      </table>
-    </div>
-    <div id="github-error" class="muted"></div>
-  </section>
-
-  <section class="card">
-    <div class="logs-head">
-      <h2>Logs en vivo <span id="logs-state" class="tag idle">conectando</span></h2>
-      <div class="controls">
-        <input id="filter" type="search" placeholder="Filtrar, p. ej. ERROR" aria-label="Filtrar logs">
-        <button id="pause" type="button" aria-pressed="false">Pausar</button>
-        <button id="clear" type="button">Limpiar</button>
+  <header class="bar">
+    <div class="bar-inner">
+      <nav class="crumbs" aria-label="Ubicación">
+        <span class="wordmark">pozzo</span>
+        <span class="slash" aria-hidden="true">/</span>
+        <span class="project">backend</span>
+        <span class="env">Producción</span>
+      </nav>
+      <div class="bar-tools">
+        <a class="domain mono" id="domain" href="/actuator/health" target="_blank" rel="noopener"></a>
+        <a class="btn" href="/status/logout">Cerrar sesión</a>
       </div>
     </div>
-    <pre id="logs" aria-live="off"></pre>
-  </section>
-</main>
+    <div class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true">Resumen</button>
+      <button class="tab" role="tab" id="tab-deployments" aria-controls="deployments" aria-selected="false">Despliegues</button>
+      <button class="tab" role="tab" id="tab-logs" aria-controls="logs" aria-selected="false">Logs</button>
+    </div>
+  </header>
 
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  $("host").textContent = location.host;
-  const fmtBytes = (b) => b == null ? "—" : b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB";
-  const fmtDuration = (s) => {
-    if (s == null) return "—";
-    if (s < 60) return s + " s";
-    const m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
-    return d ? `${d} d ${h % 24} h` : h ? `${h} h ${m % 60} min` : `${m} min ${s % 60} s`;
-  };
-  const fmtDate = (value) => new Date(typeof value === "number" ? value * 1000 : value)
-    .toLocaleString("es-PE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  const setBar = (id, used, total) => { $(id).style.width = total ? Math.min(100, used / total * 100) + "%" : "0"; };
-  const text = (id, value) => { $(id).textContent = value; };
-  let repository = "", fast = false;
+  <main class="page">
+    <section role="tabpanel" id="overview" aria-labelledby="tab-overview">
+      <div class="page-head">
+        <h1>Producción</h1>
+        <span class="state" id="headline"><span class="dot"></span>Cargando</span>
+      </div>
 
-  function render(data) {
-    repository = data.repository;
-    text("updated", new Date().toLocaleTimeString("es-PE"));
-    const { health, service, resources: r, deploys, github } = data;
-    const runs = github.runs || [];
-    const running = runs.find((run) => run.status !== "completed");
-    const inProgress = deploys.inProgress;
+      <div class="panel progress" id="progress" hidden>
+        <div class="progress-top">
+          <span class="state"><span class="dot busy"></span><span id="progress-title">Desplegando</span></span>
+          <a class="row-link" id="progress-link" target="_blank" rel="noopener">Ver en GitHub</a>
+        </div>
+        <div class="segments" id="segments"></div>
+      </div>
 
-    // The headline: deploying beats everything, then the health check.
-    const state = $("state");
-    if (running || inProgress) { state.className = "pill warn"; state.textContent = "Desplegando"; }
-    else if (health.status === "UP") { state.className = "pill ok"; state.textContent = "Operativo"; }
-    else if (service.active === "activating" || (service.active === "active" && health.status !== "UP")) { state.className = "pill warn"; state.textContent = "Arrancando"; }
-    else { state.className = "pill bad"; state.textContent = "Caído"; }
+      <div class="panel overview">
+        <div class="vital">
+          <div>
+            <div class="vital-label">Health check</div>
+            <div class="vital-value" id="vital">—</div>
+            <div class="muted" id="vital-sub">&nbsp;</div>
+          </div>
+          <svg class="spark" id="spark" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="0" y1="39.5" x2="100" y2="39.5"></line><polyline points=""></polyline>
+          </svg>
+          <div class="faint" style="font-size: var(--text-xs)">Latencia del health durante esta sesión</div>
+        </div>
+        <dl class="facts">
+          <div class="fact"><dt>Estado</dt><dd id="f-state">—</dd></div>
+          <div class="fact"><dt>Encendido</dt><dd id="f-since">—</dd></div>
+          <div class="fact wide"><dt>Fuente</dt><dd id="f-source">—</dd></div>
+          <div class="fact"><dt>Versión</dt><dd class="mono" id="f-release" style="font-size: var(--text-sm)">—</dd></div>
+          <div class="fact"><dt>Arranque</dt><dd id="f-start">—</dd></div>
+          <div class="fact"><dt>Memoria de Java</dt><dd id="f-java">—</dd></div>
+          <div class="fact"><dt>Reinicios</dt><dd id="f-restarts">—</dd></div>
+        </dl>
+      </div>
 
-    text("health", health.status === "UP" ? `UP · ${health.millis} ms` : health.status);
-    text("since", service.since && service.active === "active" ? `${fmtDate(service.since)} (hace ${fmtDuration(data.now - service.since)})` : service.active || "—");
-    text("release", deploys.currentRelease || "—");
-    const current = deploys.history.find((item) => item.release === deploys.currentRelease && item.state === "up");
-    $("commit").innerHTML = current && current.commit ? commitLink(current.commit) : "—";
-    text("java-memory", fmtBytes(service.memory));
-    text("restarts", String(service.restarts));
+      <div class="section">
+        <div class="section-head"><h2>Servidor</h2><span class="faint" id="server-name">Oracle Cloud · 1 GB</span></div>
+        <div class="panel">
+          <div class="metrics">
+            <div class="metric"><div class="muted">Memoria</div><div class="metric-value" id="m-mem">—</div><div class="meter"><span id="b-mem"></span></div></div>
+            <div class="metric"><div class="muted">Swap</div><div class="metric-value" id="m-swap">—</div><div class="meter"><span id="b-swap"></span></div></div>
+            <div class="metric"><div class="muted">Disco</div><div class="metric-value" id="m-disk">—</div><div class="meter"><span id="b-disk"></span></div></div>
+            <div class="metric"><div class="muted">Carga</div><div class="metric-value" id="m-load">—</div><div class="meter"><span id="b-load"></span></div></div>
+          </div>
+          <div class="metrics-foot" id="m-foot">&nbsp;</div>
+        </div>
+      </div>
 
-    const memUsed = r.memory.total - r.memory.available;
-    text("mem-text", `${fmtBytes(memUsed)} de ${fmtBytes(r.memory.total)}`); setBar("mem-bar", memUsed, r.memory.total);
-    text("swap-text", `${fmtBytes(r.swap.used)} de ${fmtBytes(r.swap.total)}`); setBar("swap-bar", r.swap.used, r.swap.total);
-    text("disk-text", `${fmtBytes(r.disk.used)} de ${fmtBytes(r.disk.total)}`); setBar("disk-bar", r.disk.used, r.disk.total);
-    text("load", `${r.load.join(" · ")} (${r.cpus} CPU)`);
-    text("uptime", fmtDuration(r.uptime));
+      <div class="section">
+        <div class="section-head"><h2>Últimos despliegues</h2><a href="#deployments" data-tab="deployments">Ver todos</a></div>
+        <ul class="panel rows" id="recent"></ul>
+      </div>
+    </section>
 
-    renderDeploy(running, inProgress, runs, deploys.history, data.now);
-    renderHistory(runs, deploys.history);
-    $("github-error").textContent = github.error ? `GitHub: ${github.error}` : "";
-    fast = Boolean(running || inProgress);
-  }
+    <section role="tabpanel" id="deployments" aria-labelledby="tab-deployments" hidden>
+      <div class="page-head"><h1>Despliegues</h1><span class="muted" style="font-size: var(--text-sm)">Cada merge a <span class="mono">main</span> despliega en el servidor</span></div>
+      <ul class="panel rows" id="all"></ul>
+      <p class="note" id="github-note"></p>
+    </section>
 
-  function commitLink(sha) {
-    return `<a class="mono" href="https://github.com/${repository}/commit/${sha}" target="_blank" rel="noopener">${sha.slice(0, 7)}</a>`;
-  }
+    <section role="tabpanel" id="logs" aria-labelledby="tab-logs" hidden>
+      <div class="page-head"><h1>Logs</h1></div>
+      <div class="log-tools">
+        <input class="search" id="search" type="search" placeholder="Buscar en los logs" aria-label="Buscar en los logs">
+        <div class="seg" role="group" aria-label="Nivel">
+          <button type="button" data-level="all" aria-pressed="true">Todos</button>
+          <button type="button" data-level="err" aria-pressed="false">Errores</button>
+          <button type="button" data-level="warn" aria-pressed="false">Advertencias</button>
+        </div>
+        <button class="btn" type="button" id="pause" aria-pressed="false">Pausar</button>
+        <span class="live"><span class="dot" id="live-dot"></span><span id="live-text">Conectando</span></span>
+      </div>
+      <div class="panel log" id="log" aria-live="off"></div>
+    </section>
+  </main>
 
-  function renderDeploy(running, inProgress, runs, history, now) {
-    const labels = ["Compilar en GitHub", "Enviar el jar", "Arrancar el backend", "En línea"];
-    let stage = -1, failed = -1, title = "Sin despliegues en curso.";
-    const run = running || runs[0];
-    const record = run && history.find((item) => String(item.runId) === String(run.id));
-    if (inProgress && (!run || String(inProgress.runId) === String(run.id) || !inProgress.runId)) {
-      stage = inProgress.state === "receiving" ? 1 : 2;
-      const since = inProgress.state === "receiving" ? inProgress.receivedAt : inProgress.startedAt;
-      title = `${inProgress.state === "receiving" ? "Recibiendo" : "Arrancando"} ${inProgress.release || ""} · ${fmtDuration(now - since)}`;
-    } else if (running) {
-      stage = 0;
-      title = `Run #${running.number}: “${running.title}” · ${fmtDuration(Math.round(now - Date.parse(running.createdAt) / 1000))}`;
-    } else if (run) {
-      if (record && record.state === "up") { stage = 4; title = `Último: run #${run.number}, en línea en ${record.startSeconds} s · ${fmtDate(record.finishedAt)}`; }
-      else if (record) { failed = 2; title = `Último: run #${run.number} no arrancó (${record.state === "rolled_back" ? "volvió a la versión anterior" : "servicio detenido"})`; }
-      else if (run.conclusion === "success") { stage = 4; title = `Último: run #${run.number} terminó bien · ${fmtDate(run.updatedAt)}`; }
-      else { failed = 0; title = `Último: run #${run.number} falló en GitHub (${run.conclusion})`; }
+  <script>
+  (() => {
+    const $ = (id) => document.getElementById(id);
+    const rtf = new Intl.RelativeTimeFormat("es", { numeric: "auto" });
+    const ago = (seconds) => {
+      const s = Math.max(0, Math.round(seconds));
+      if (s < 60) return rtf.format(-s, "second");
+      if (s < 3600) return rtf.format(-Math.round(s / 60), "minute");
+      if (s < 86400) return rtf.format(-Math.round(s / 3600), "hour");
+      return rtf.format(-Math.round(s / 86400), "day");
+    };
+    const duration = (s) => {
+      if (s == null) return "—";
+      s = Math.round(s);
+      if (s < 60) return `${s} s`;
+      const m = Math.floor(s / 60), h = Math.floor(m / 60), d = Math.floor(h / 24);
+      return d ? `${d} d ${h % 24} h` : h ? `${h} h ${m % 60} min` : `${m} min ${s % 60} s`;
+    };
+    const bytes = (b) => b == null ? "—" : b >= 1073741824 ? `${(b / 1073741824).toFixed(1)} GB` : `${Math.round(b / 1048576)} MB`;
+    const escape = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const epoch = (iso) => Date.parse(iso) / 1000;
+    $("domain").textContent = location.host;
+
+    /* Tabs, remembered in the address so a reload stays where it was */
+    const tabs = ["overview", "deployments", "logs"];
+    function show(name) {
+      if (!tabs.includes(name)) name = "overview";
+      tabs.forEach((tab) => {
+        $(tab).hidden = tab !== name;
+        $(`tab-${tab}`).setAttribute("aria-selected", String(tab === name));
+      });
+      if (name === "logs") requestAnimationFrame(() => { if (!paused) log.scrollTop = log.scrollHeight; });
     }
-    $("deploy-title").innerHTML = run ? `${title} · <a href="${run.url}" target="_blank" rel="noopener">ver en GitHub</a>` : title;
-    $("steps").innerHTML = labels.map((label, index) => {
-      let cls = "", note = "Pendiente";
-      if (failed === index) { cls = "failed"; note = "Falló"; }
-      else if (index < stage || stage === 4 || (failed > index)) { cls = "done"; note = "Listo"; }
-      else if (index === stage) { cls = "now"; note = "En curso"; }
-      if (stage === -1 && failed === -1) { cls = ""; note = "—"; }
-      return `<div class="step ${cls}"><b>${label}</b>${note}</div>`;
-    }).join("");
-  }
-
-  function renderHistory(runs, history) {
-    const rows = runs.slice(0, 12).map((run) => {
-      const record = history.find((item) => String(item.runId) === String(run.id));
-      let result;
-      if (run.status !== "completed") result = `<span class="tag warn">En curso</span>`;
-      else if (record) result = record.state === "up" ? `<span class="tag ok">En línea</span>`
-        : record.state === "rolled_back" ? `<span class="tag bad">Volvió a la anterior</span>` : `<span class="tag bad">No arrancó</span>`;
-      else result = run.conclusion === "success" ? `<span class="tag ok">Bien</span>` : `<span class="tag bad">${run.conclusion || "—"}</span>`;
-      const start = record && record.startSeconds != null ? `${record.startSeconds} s` : "—";
-      return `<tr><td>${fmtDate(run.createdAt)}<div class="muted">#${run.number} · ${run.actor}</div></td>`
-        + `<td>${commitLink(run.commit)} <a href="${run.url}" target="_blank" rel="noopener">run</a><div class="muted">${escapeHtml(run.title)}</div></td>`
-        + `<td>${start}</td><td>${result}</td></tr>`;
+    tabs.forEach((tab) => $(`tab-${tab}`).addEventListener("click", () => { history.replaceState(null, "", `#${tab}`); show(tab); }));
+    document.querySelectorAll("[data-tab]").forEach((link) => link.addEventListener("click", (event) => {
+      event.preventDefault(); history.replaceState(null, "", `#${link.dataset.tab}`); show(link.dataset.tab);
+    }));
+    document.querySelector('[role="tablist"]').addEventListener("keydown", (event) => {
+      const index = tabs.findIndex((tab) => $(`tab-${tab}`).getAttribute("aria-selected") === "true");
+      const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
+      if (!step) return;
+      const next = tabs[(index + step + tabs.length) % tabs.length];
+      history.replaceState(null, "", `#${next}`); show(next); $(`tab-${next}`).focus();
     });
-    $("history").innerHTML = rows.join("") || `<tr><td colspan="4" class="muted">Todavía no hay despliegues.</td></tr>`;
-  }
 
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  }
-
-  async function refresh() {
-    try {
-      const response = await fetch("/status/api/summary", { cache: "no-store" });
-      if (response.ok) render(await response.json());
-    } catch (error) {
-      $("state").className = "pill bad"; $("state").textContent = "Sin conexión";
+    /* Deploys: GitHub runs joined with what the server recorded for each run */
+    let repository = "";
+    function deploysOf(data) {
+      const history = data.deploys.history;
+      return (data.github.runs || []).map((run) => {
+        const record = history.find((item) => String(item.runId) === String(run.id));
+        const live = data.deploys.inProgress && String(data.deploys.inProgress.runId) === String(run.id) ? data.deploys.inProgress : null;
+        let state, label;
+        if (run.status !== "completed" || live) { state = "busy"; label = "Desplegando"; }
+        else if (record) {
+          state = record.state === "up" ? "ok" : "bad";
+          label = { up: "Listo", rolled_back: "Revertido", stopped: "No arrancó" }[record.state] || record.state;
+        } else if (run.conclusion === "success") { state = "ok"; label = "Listo"; }
+        else if (run.conclusion === "cancelled") { state = ""; label = "Cancelado"; }
+        else { state = "bad"; label = "Error"; }
+        const took = run.status === "completed" ? epoch(run.updatedAt) - epoch(run.createdAt) : data.now - epoch(run.createdAt);
+        return { run, record, live, state, label, took };
+      });
     }
-    setTimeout(refresh, fast ? 2000 : 8000);
-  }
-  refresh();
-
-  // Live log: the last lines, then each new one. Pausing keeps receiving but stops drawing.
-  const logs = $("logs"), filter = $("filter"), pause = $("pause");
-  const buffer = [];
-  const MAX = 2000;
-  const classify = (line) => / ERROR |Exception|\tat |APPLICATION FAILED/.test(line) ? "e"
-    : / WARN /.test(line) ? "w" : /Started \w+Application|Tomcat started/.test(line) ? "s" : "";
-  function drawLine(line) {
-    const query = filter.value.trim().toLowerCase();
-    if (query && !line.toLowerCase().includes(query)) return;
-    const atBottom = logs.scrollHeight - logs.scrollTop - logs.clientHeight < 40;
-    const match = line.match(/^(\S+)\s+\S+\[\d+\]:\s?(.*)$/);
-    const row = document.createElement("div");
-    const cls = classify(line);
-    if (cls) row.className = cls;
-    if (match) {
-      const time = document.createElement("span");
-      time.className = "t";
-      time.textContent = match[1].slice(11, 19) + "  ";
-      row.append(time, match[2]);
-    } else {
-      row.textContent = line;
+    function rowHtml(item, now) {
+      const { run, record, state, label, took } = item;
+      const start = record && record.startSeconds != null ? ` · arranque ${record.startSeconds} s` : "";
+      return `<li class="row">
+        <div style="min-width:0"><div class="row-title">${escape(run.title)}</div>
+          <div class="row-sub"><span class="mono">#${run.number}</span></div></div>
+        <div class="row-status"><span class="state"><span class="dot ${state}"></span>${label}</span>
+          <div class="row-sub">${duration(took)}${start}</div></div>
+        <div class="row-commit" style="min-width:0"><div class="row-sub"><span class="branch">main</span>
+          <a class="mono" href="https://github.com/${repository}/commit/${run.commit}" target="_blank" rel="noopener">${run.commit.slice(0, 7)}</a></div></div>
+        <div class="row-time">${ago(now - epoch(run.createdAt))}<div class="faint">${escape(run.actor)}</div>
+          <a class="row-link" href="${run.url}" target="_blank" rel="noopener">Ver run</a></div>
+      </li>`;
     }
-    logs.append(row);
-    while (logs.childElementCount > MAX) logs.firstChild.remove();
-    if (atBottom) logs.scrollTop = logs.scrollHeight;
-  }
-  function redraw() { logs.textContent = ""; buffer.forEach(drawLine); logs.scrollTop = logs.scrollHeight; }
-  const source = new EventSource("/status/api/logs");
-  source.onopen = () => { $("logs-state").className = "tag ok"; $("logs-state").textContent = "en vivo"; };
-  source.onerror = () => { $("logs-state").className = "tag warn"; $("logs-state").textContent = "reconectando"; };
-  source.onmessage = (event) => {
-    const line = JSON.parse(event.data);
-    buffer.push(line);
-    if (buffer.length > MAX) buffer.shift();
-    if (pause.getAttribute("aria-pressed") !== "true") drawLine(line);
-  };
-  filter.addEventListener("input", redraw);
-  pause.addEventListener("click", () => {
-    const paused = pause.getAttribute("aria-pressed") === "true";
-    pause.setAttribute("aria-pressed", String(!paused));
-    pause.textContent = paused ? "Pausar" : "Reanudar";
-    if (paused) redraw();
-  });
-  $("clear").addEventListener("click", () => { buffer.length = 0; logs.textContent = ""; });
-})();
-</script>
+
+    /* The health check latency of this session, drawn as a sparkline */
+    const samples = [];
+    function drawSpark() {
+      const points = samples.slice(-40);
+      const max = Math.max(200, ...points);
+      $("spark").querySelector("polyline").setAttribute("points",
+        points.map((value, index) => `${(index / Math.max(1, points.length - 1)) * 100},${39 - (value / max) * 36}`).join(" "));
+    }
+
+    let fast = false;
+    function render(data) {
+      repository = data.repository;
+      const { health, service, resources: r } = data;
+      const items = deploysOf(data);
+      const deploying = items.find((item) => item.state === "busy") || (data.deploys.inProgress ? { run: null, live: data.deploys.inProgress } : null);
+      fast = Boolean(deploying);
+
+      const up = health.status === "UP";
+      const [cls, text] = deploying ? ["busy", "Desplegando"] : up ? ["ok", "Operativo"]
+        : service.active === "active" || service.active === "activating" ? ["busy", "Arrancando"] : ["bad", "Caído"];
+      $("headline").innerHTML = `<span class="dot ${cls}"></span>${text}`;
+
+      if (up) samples.push(health.millis);
+      drawSpark();
+      $("vital").textContent = up ? `${health.millis} ms` : health.status === "DOWN" ? "Sin respuesta" : health.status;
+      $("vital-sub").textContent = up ? "UP · responde el backend" : "El backend no responde al health check";
+
+      const current = data.deploys.history.find((item) => item.release === data.deploys.currentRelease && item.state === "up");
+      const currentRun = current && items.find((item) => String(item.run.id) === String(current.runId));
+      $("f-state").innerHTML = `<span class="state"><span class="dot ${up ? "ok" : cls}"></span>${up ? "Listo" : text}</span>`;
+      $("f-since").textContent = service.since && service.active === "active" ? ago(data.now - service.since) : service.active || "—";
+      const sha = current && current.commit;
+      $("f-source").innerHTML = sha
+        ? `<div class="commit"><span class="branch">main</span><a class="mono" href="https://github.com/${repository}/commit/${sha}" target="_blank" rel="noopener">${sha.slice(0, 7)}</a>
+           <span class="commit-title">${escape(currentRun ? currentRun.run.title : "")}</span></div>`
+        : `<span class="muted">Sin registro: se desplegó antes de que el servidor guardara los commits</span>`;
+      $("f-release").textContent = data.deploys.currentRelease || "—";
+      $("f-start").textContent = current && current.startSeconds != null ? `${current.startSeconds} s` : "—";
+      $("f-java").textContent = bytes(service.memory);
+      $("f-restarts").textContent = String(service.restarts);
+
+      const memUsed = r.memory.total - r.memory.available;
+      const meter = (id, used, total) => { $(id).style.width = `${total ? Math.min(100, (used / total) * 100) : 0}%`; };
+      $("m-mem").textContent = `${bytes(memUsed)} / ${bytes(r.memory.total)}`; meter("b-mem", memUsed, r.memory.total);
+      $("m-swap").textContent = `${bytes(r.swap.used)} / ${bytes(r.swap.total)}`; meter("b-swap", r.swap.used, r.swap.total);
+      $("m-disk").textContent = `${bytes(r.disk.used)} / ${bytes(r.disk.total)}`; meter("b-disk", r.disk.used, r.disk.total);
+      $("m-load").textContent = r.load[0].toFixed(2); meter("b-load", r.load[0], r.cpus);
+      $("m-foot").textContent = `Carga 1 · 5 · 15 min: ${r.load.join(" · ")} en ${r.cpus} CPU · servidor encendido hace ${duration(r.uptime)}`;
+
+      // Deploy in progress: GitHub builds, then the server receives, starts and answers UP.
+      const progress = $("progress");
+      progress.hidden = !deploying;
+      if (deploying) {
+        const live = deploying.live || data.deploys.inProgress;
+        const stage = live ? (live.state === "receiving" ? 1 : 2) : 0;
+        const run = deploying.run;
+        const since = live ? (live.state === "receiving" ? live.receivedAt : live.startedAt) : epoch(run.createdAt);
+        $("progress-title").textContent = `${["Compilando en GitHub", "Enviando el jar", "Arrancando el backend"][stage]} · ${duration(data.now - since)}`;
+        $("progress-link").href = run ? run.url : `https://github.com/${repository}/actions`;
+        $("segments").innerHTML = ["Compilar", "Enviar", "Arrancar", "En línea"]
+          .map((name, index) => `<div class="segment ${index < stage ? "done" : index === stage ? "now" : ""}">${name}</div>`).join("");
+      }
+
+      const empty = `<li class="empty">Todavía no hay despliegues.</li>`;
+      $("recent").innerHTML = items.slice(0, 5).map((item) => rowHtml(item, data.now)).join("") || empty;
+      $("all").innerHTML = items.map((item) => rowHtml(item, data.now)).join("") || empty;
+      $("github-note").textContent = data.github.error ? `No se pudo leer GitHub: ${data.github.error}` : "";
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/status/api/summary", { cache: "no-store" });
+        if (response.status === 401) { location.href = "/status/login"; return; }
+        if (response.ok) render(await response.json());
+      } catch {
+        $("headline").innerHTML = `<span class="dot bad"></span>Sin conexión`;
+      }
+      setTimeout(refresh, fast ? 2000 : 8000);
+    }
+
+    /* Live log: journal lines of the service, parsed into time, level and message */
+    const log = $("log");
+    const lines = [];
+    const MAX = 3000;
+    let level = "all", paused = false;
+    function parse(raw) {
+      const journal = raw.match(/^(\S+)\s+\S+?\[\d+\]:\s?(.*)$/);
+      const time = journal ? journal[1].slice(11, 19) : "";
+      const body = journal ? journal[2] : raw;
+      const spring = body.match(/^\S+\s+(ERROR|WARN|INFO|DEBUG|TRACE)\s+\d+\s+---\s+\[[^\]]*\]\s+\[[^\]]*\]\s+\S+\s+:\s(.*)$/);
+      if (spring) return { time, level: spring[1], message: spring[2], cont: false };
+      const cont = /^\s+(at |\.\.\. \d+)|^Caused by:|^[\w.$]+(Exception|Error)\b/.test(body);
+      return { time, level: "", message: body, cont };
+    }
+    function lineHtml(item) {
+      const cls = item.level === "ERROR" || item.inherit === "ERROR" ? "err" : item.level === "WARN" ? "warn" : "";
+      return `<div class="line ${cls}${item.cont ? " cont" : ""}"><span class="t">${item.time}</span><span class="lv">${item.level || ""}</span><span class="msg">${escape(item.message)}</span></div>`;
+    }
+    function visible(item) {
+      const query = $("search").value.trim().toLowerCase();
+      if (query && !item.message.toLowerCase().includes(query)) return false;
+      if (level === "err") return item.level === "ERROR" || item.inherit === "ERROR";
+      if (level === "warn") return item.level === "WARN";
+      return true;
+    }
+    function append(item) {
+      if (!visible(item)) return;
+      const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 48;
+      log.insertAdjacentHTML("beforeend", lineHtml(item));
+      while (log.childElementCount > MAX) log.firstElementChild.remove();
+      if (atBottom) log.scrollTop = log.scrollHeight;
+    }
+    function redraw() {
+      log.innerHTML = lines.filter(visible).map(lineHtml).join("");
+      log.scrollTop = log.scrollHeight;
+    }
+    let lastLevel = "";
+    const source = new EventSource("/status/api/logs");
+    source.onopen = () => { $("live-dot").className = "dot ok"; $("live-text").textContent = "En vivo"; };
+    source.onerror = () => { $("live-dot").className = "dot busy"; $("live-text").textContent = "Reconectando"; };
+    source.onmessage = (event) => {
+      const item = parse(JSON.parse(event.data));
+      if (item.level) lastLevel = item.level; else if (item.cont) item.inherit = lastLevel;
+      lines.push(item);
+      if (lines.length > MAX) lines.shift();
+      if (!paused) append(item);
+    };
+    $("search").addEventListener("input", redraw);
+    document.querySelectorAll("[data-level]").forEach((button) => button.addEventListener("click", () => {
+      level = button.dataset.level;
+      document.querySelectorAll("[data-level]").forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+      redraw();
+    }));
+    $("pause").addEventListener("click", () => {
+      paused = !paused;
+      $("pause").setAttribute("aria-pressed", String(paused));
+      $("pause").textContent = paused ? "Reanudar" : "Pausar";
+      if (!paused) redraw();
+    });
+
+    show(location.hash.slice(1));
+    refresh();
+  })();
+  </script>
 </body>
 </html>
