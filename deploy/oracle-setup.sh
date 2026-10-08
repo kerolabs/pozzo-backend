@@ -10,17 +10,18 @@
 #
 # Usage, from the repository folder on the machine with SSH access (the status page travels with it):
 #   { printf 'STATUS_SERVER=%q\n' "$(cat deploy/status/status_server.py)";
-#     printf 'STATUS_PAGE=%q\n' "$(cat deploy/status/index.html)"; cat deploy/oracle-setup.sh; } |
+#     printf 'STATUS_PAGE=%q\n' "$(cat deploy/status/index.html)";
+#     printf 'STATUS_LOGIN=%q\n' "$(cat deploy/status/login.html)"; cat deploy/oracle-setup.sh; } |
 #     ssh ubuntu@<ip> 'sudo bash -s -- <domain> "<public deploy key>" <status user> "<password hash>"'
 # <domain> may list several names, e.g. "api-kerolabs.duckdns.org, 147-5-100-8.sslip.io".
-# The password hash comes from: caddy hash-password --plaintext '<password>'.
+# The password hash comes from: python3 deploy/status/status_server.py hash-password
 set -euo pipefail
 DOMAIN="${1:?The domain is required, e.g. api-kerolabs.duckdns.org}"
 DEPLOY_PUBLIC_KEY="${2:?The public deploy key is required}"
 STATUS_USER="${3:?The user of the status page is required}"
-STATUS_PASSWORD_HASH="${4:?The bcrypt hash of its password is required (caddy hash-password)}"
-# The status page itself travels in the environment: STATUS_SERVER and STATUS_PAGE (see the usage above).
-: "${STATUS_SERVER:?}" "${STATUS_PAGE:?}"
+STATUS_PASSWORD_HASH="${4:?The PBKDF2 hash of its password is required (status_server.py hash-password)}"
+# The status page itself travels in the environment: STATUS_SERVER, STATUS_PAGE and STATUS_LOGIN (see above).
+: "${STATUS_SERVER:?}" "${STATUS_PAGE:?}" "${STATUS_LOGIN:?}"
 export DEBIAN_FRONTEND=noninteractive
 
 echo "== 1. Swap of 2 GB, so Java does not run out of memory on 1 GB"
@@ -248,10 +249,18 @@ echo "restrict,command=\"/usr/local/bin/pozzo-deploy\" $DEPLOY_PUBLIC_KEY" > /ho
 chown deploy:deploy /home/deploy/.ssh/authorized_keys
 chmod 600 /home/deploy/.ssh/authorized_keys
 
-echo "== 9. The status page: a small service that only reads, served by Caddy under /status with a password"
+echo "== 9. The status page: a small service that only reads, with its own login, served by Caddy under /status"
 install -d -m 755 /opt/pozzo-status
 install -m 644 /dev/stdin /opt/pozzo-status/status_server.py <<< "$STATUS_SERVER"
 install -m 644 /dev/stdin /opt/pozzo-status/index.html <<< "$STATUS_PAGE"
+install -m 644 /dev/stdin /opt/pozzo-status/login.html <<< "$STATUS_LOGIN"
+# The login: user, password hash and the secret that signs the session cookies. Keeping the secret keeps the
+# sessions open across runs of this script; a new password does not need a new secret.
+install -d -m 750 -o root -g pozzostatus /etc/pozzo-status
+secret=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sessionSecret"])' \
+  /etc/pozzo-status/config.json 2>/dev/null || python3 -c 'import secrets; print(secrets.token_urlsafe(48))')
+python3 -c 'import json,sys; print(json.dumps({"user": sys.argv[1], "passwordHash": sys.argv[2], "sessionSecret": sys.argv[3]}))' \
+  "$STATUS_USER" "$STATUS_PASSWORD_HASH" "$secret" | install -m 640 -o root -g pozzostatus /dev/stdin /etc/pozzo-status/config.json
 cat > /etc/systemd/system/pozzo-status.service <<'UNIT'
 [Unit]
 Description=Status page of the Pozzo backend
@@ -275,13 +284,10 @@ systemctl daemon-reload
 systemctl enable pozzo-status.service >/dev/null 2>&1
 systemctl restart pozzo-status.service
 
-echo "== 10. Caddy: HTTPS for $DOMAIN in front of the backend, and /status behind a password"
+echo "== 10. Caddy: HTTPS for $DOMAIN in front of the backend and of the status page"
 cat > /etc/caddy/Caddyfile <<CADDY
 $DOMAIN {
 	handle /status* {
-		basic_auth {
-			$STATUS_USER $STATUS_PASSWORD_HASH
-		}
 		reverse_proxy 127.0.0.1:8090 {
 			flush_interval -1
 		}
