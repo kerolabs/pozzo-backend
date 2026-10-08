@@ -26,6 +26,7 @@ import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneId;
 
 /**
@@ -149,8 +150,11 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         if (notificationRepository.existsByDedupKey(command.dedupKey())) {
             return Result.success(false);
         }
-        notificationRepository.save(Notification.alert(command.accountId(), command.groupId(), command.periodId(),
-                command.content(), command.dedupKey(), clock.instant()));
+        var now = clock.instant();
+        var alert = notificationRepository.save(Notification.alert(command.accountId(), command.groupId(),
+                command.periodId(), command.content(), command.dedupKey(), now));
+        // An alert tells something that just happened, so it goes out now instead of at the next dispatch.
+        deliver(alert, now);
         return Result.success(true);
     }
 
@@ -159,28 +163,40 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         var now = clock.instant();
         var sent = 0;
         for (var notification : notificationRepository.findDue(now, command.limit())) {
-            var delivered = 0;
-            var failed = 0;
-            for (var device : deviceRepository.findActiveByAccountId(notification.getAccountId())) {
-                switch (send(device, notification)) {
-                    case DELIVERED -> delivered++;
-                    case FAILED -> failed++;
-                    case INVALID_TOKEN -> {
-                        device.deactivate();
-                        deviceRepository.save(device);
-                    }
-                }
-            }
-            // A member without devices still finds the notification in the application.
-            if (delivered > 0 || failed == 0) {
-                notification.markSent(now);
+            if (deliver(notification, now)) {
                 sent++;
-            } else {
-                notification.markFailed();
             }
-            notificationRepository.save(notification);
         }
         return Result.success(sent);
+    }
+
+    /**
+     * Pushes a notification to every active device of its member and records the outcome.
+     *
+     * @return true when it counts as sent
+     */
+    private boolean deliver(Notification notification, Instant now) {
+        var delivered = 0;
+        var failed = 0;
+        for (var device : deviceRepository.findActiveByAccountId(notification.getAccountId())) {
+            switch (send(device, notification)) {
+                case DELIVERED -> delivered++;
+                case FAILED -> failed++;
+                case INVALID_TOKEN -> {
+                    device.deactivate();
+                    deviceRepository.save(device);
+                }
+            }
+        }
+        // A member without devices still finds the notification in the application.
+        var sent = delivered > 0 || failed == 0;
+        if (sent) {
+            notification.markSent(now);
+        } else {
+            notification.markFailed();
+        }
+        notificationRepository.save(notification);
+        return sent;
     }
 
     private PushOutcome send(Device device, Notification notification) {

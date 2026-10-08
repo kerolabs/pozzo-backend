@@ -22,4 +22,6 @@ public interface InvitationRepository {
     List<Invitation> findAllActiveByGroupId(UUID groupId);
 
     Invitation save(Invitation invitation);
+
+    void deleteAllByGroupId(UUID groupId);
 }

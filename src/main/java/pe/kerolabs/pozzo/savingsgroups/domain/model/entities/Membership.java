@@ -72,6 +72,23 @@ public class Membership {
         this.status = MembershipStatus.REMOVED;
     }
 
+    public boolean isRemoved() {
+        return status == MembershipStatus.REMOVED;
+    }
+
+    /**
+     * Brings back a member the organizer removed, who joins again with an invitation. The membership keeps
+     * its id, so a member has one membership per group.
+     */
+    public void rejoin(String displayName, Instant now) {
+        if (!isRemoved()) {
+            throw new IllegalStateException("Only a removed membership can join again");
+        }
+        this.displayName = requireName(displayName);
+        this.status = MembershipStatus.ACTIVE;
+        this.joinedAt = now;
+    }
+
     public void markDropped() {
         this.status = MembershipStatus.DROPPED;
     }

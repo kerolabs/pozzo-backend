@@ -73,6 +73,19 @@ public final class NotificationTexts {
                 .formatted(money(potAmount), groupName), groupLink(groupId));
     }
 
+    public static NotificationContent memberJoined(String memberName, String groupName, int membersCount, int seats,
+                                                   UUID groupId) {
+        var body = membersCount >= seats
+                ? "%s se unió a %s. La junta está completa: ya puedes asignar los turnos.".formatted(memberName, groupName)
+                : "%s se unió a %s. Van %d de %d integrantes.".formatted(memberName, groupName, membersCount, seats);
+        return content("Nuevo integrante", body, "pozzo://groups/%s/detail".formatted(groupId));
+    }
+
+    public static NotificationContent groupDeleted(String groupName) {
+        return content("Junta eliminada", "La cabeza eliminó %s antes de iniciarla.".formatted(groupName),
+                "pozzo://groups");
+    }
+
     public static NotificationContent cycleClosed(String groupName) {
         return content("Ciclo terminado", "%s completó todos sus turnos. Tu historial de cumplimiento ya está actualizado."
                 .formatted(groupName), "pozzo://compliance");

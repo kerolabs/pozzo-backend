@@ -57,4 +57,9 @@ public class InvitationRepositoryImpl implements InvitationRepository {
         invitation.clearDomainEvents();
         return InvitationPersistenceAssembler.toDomainFromPersistence(saved);
     }
+
+    @Override
+    public void deleteAllByGroupId(UUID groupId) {
+        persistenceRepository.deleteAllByGroupId(groupId);
+    }
 }

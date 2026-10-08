@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupCreatedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
@@ -177,7 +178,8 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     }
 
     /**
-     * Adds a member who joined with an invitation code.
+     * Adds a member who joined with an invitation code. A member the organizer removed gets the same
+     * membership back.
      */
     public Membership join(UUID memberId, String displayName, Instant now) {
         requireNotStarted();
@@ -185,8 +187,17 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
             throw new BusinessRuleViolationException("ALREADY_A_MEMBER", "The member already belongs to the group");
         }
         requireFreeSeat();
-        var membership = Membership.ofAppMember(memberId, displayName, now);
-        memberships.add(membership);
+        var removed = memberships.stream()
+                .filter(membership -> membership.belongsTo(memberId) && membership.isRemoved())
+                .findFirst();
+        Membership membership;
+        if (removed.isPresent()) {
+            membership = removed.get();
+            membership.rejoin(displayName, now);
+        } else {
+            membership = Membership.ofAppMember(memberId, displayName, now);
+            memberships.add(membership);
+        }
         registerDomainEvent(new MemberJoinedEvent(id, membership.getId(), memberId, now));
         refreshReadiness();
         return membership;
@@ -267,6 +278,18 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
                 })
                 .toList();
         registerDomainEvent(new GroupStartedEvent(id, organizerId, rules, startedTurns, now));
+    }
+
+    /**
+     * Deletes the group before it starts. Once it has started, its history belongs to every member.
+     */
+    public void delete(Instant now) {
+        requireNotStarted();
+        var memberAccountIds = activeMemberships().stream()
+                .map(Membership::getMemberId)
+                .filter(memberId -> memberId != null && !memberId.equals(organizerId))
+                .toList();
+        registerDomainEvent(new GroupDeletedEvent(id, name, organizerId, memberAccountIds, now));
     }
 
     /**

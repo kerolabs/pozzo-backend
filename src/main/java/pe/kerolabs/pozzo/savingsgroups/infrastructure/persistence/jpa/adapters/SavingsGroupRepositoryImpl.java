@@ -52,4 +52,11 @@ public class SavingsGroupRepositoryImpl implements SavingsGroupRepository {
         group.clearDomainEvents();
         return SavingsGroupPersistenceAssembler.toDomainFromPersistence(saved);
     }
+
+    @Override
+    public void delete(SavingsGroup group) {
+        persistenceRepository.deleteById(group.getId());
+        group.domainEvents().forEach(eventPublisher::publishEvent);
+        group.clearDomainEvents();
+    }
 }
