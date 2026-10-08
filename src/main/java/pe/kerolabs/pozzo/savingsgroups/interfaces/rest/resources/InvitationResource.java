@@ -11,6 +11,6 @@ import java.time.Instant;
 public record InvitationResource(
         @Schema(description = "Code to type in the application", example = "JB-7K4M") String code,
         @Schema(description = "Link that opens the application on the join screen",
-                example = "https://pozzo.app/unirme/JB7K4M") String link,
+                example = "https://kerolabs.github.io/unirme/?c=JB7K4M") String link,
         @Schema(description = "Moment the invitation expires") Instant expiresAt) {
 }
