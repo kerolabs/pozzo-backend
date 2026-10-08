@@ -10,7 +10,13 @@ import java.util.Optional;
  */
 public interface ShareLinkRepository {
 
+    /**
+     * Finds the share link that owns the given token, revoked or not.
+     */
     Optional<ShareLink> findByToken(ShareToken token);
 
+    /**
+     * Creates or updates the share link and returns the stored state.
+     */
     ShareLink save(ShareLink link);
 }

@@ -10,5 +10,9 @@ import java.util.List;
  */
 public interface ComplianceScoringService {
 
+    /**
+     * Builds the summary of a member from all of their entries.
+     * An empty list yields a summary with the NEW level.
+     */
     ComplianceSummary summarize(List<ComplianceEntry> entries);
 }
