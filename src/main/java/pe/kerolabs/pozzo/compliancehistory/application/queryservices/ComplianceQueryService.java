@@ -29,8 +29,14 @@ public interface ComplianceQueryService {
      */
     Optional<List<MemberCompliance>> handle(GetGroupComplianceQuery query);
 
+    /**
+     * The summary of a member, for the member or one of their organizers; empty for anyone else.
+     */
     Optional<ComplianceSummary> handle(GetMemberSummaryQuery query);
 
+    /**
+     * What a shared link shows; empty when the token is malformed, unknown, revoked or expired.
+     */
     Optional<SharedHistory> handle(GetSharedHistoryQuery query);
 
     /**
