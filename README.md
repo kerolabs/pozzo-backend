@@ -35,27 +35,29 @@ Los proveedores de SMS, correo y push usan `log` por defecto y escriben en la co
 
 ## Pruebas y Calidad de Código
 
-Para compilar y ejecutar las pruebas unitarias y de integración:
+La suite tiene tres niveles: pruebas unitarias del dominio de cada bounded context, pruebas de integración del API REST y pruebas de aceptación escritas en Gherkin, un archivo `.feature` por Technical Story en `src/test/resources/features`. Las de integración y las de aceptación levantan PostgreSQL 16 en un contenedor con Testcontainers, así que necesitan Docker en ejecución; ninguna envía SMS, correos ni notificaciones reales.
 
-`ash
-# Compilar todas las clases sin ejecutar pruebas
-./mvnw test-compile
-
-# Ejecutar el conjunto completo de pruebas unitarias
+```bash
+# Todas las pruebas: unitarias, de integración y de aceptación
 ./mvnw test
-`
+
+# Solo las pruebas de aceptación
+./mvnw test -Dtest=AcceptanceTestSuite
+```
+
+El reporte de los escenarios queda en `target/cucumber-report.html`. El workflow `Tests` corre la suite en cada pull request y en cada push a `develop` y `main`.
 
 ## Ejecución con Docker
 
 El proyecto cuenta con un Dockerfile multi-stage optimizado para producción:
 
-`ash
+```bash
 # Construir la imagen de contenedor
 docker build -t kerolabs/pozzo-backend .
 
 # Ejecutar el contenedor pasando el archivo de entorno
 docker run -d --name pozzo-api --env-file .env -p 8080:8080 kerolabs/pozzo-backend
-`
+```
 
 ## Despliegue
 

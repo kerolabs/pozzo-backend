@@ -1,9 +1,9 @@
 package pe.kerolabs.pozzo;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import pe.kerolabs.pozzo.support.PozzoIntegrationTest;
 
-@SpringBootTest
+@PozzoIntegrationTest
 class PozzoApplicationTests {
 
     @Test
