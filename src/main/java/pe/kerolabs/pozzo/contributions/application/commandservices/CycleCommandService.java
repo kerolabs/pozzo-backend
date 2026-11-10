@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.contributions.application.commandservices;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
@@ -38,6 +39,15 @@ public interface CycleCommandService {
      * @return true when a turn was linked
      */
     Result<Boolean, ApplicationError> handle(LinkCycleMemberCommand command);
+
+    /**
+     * Keeps the image of the transfer with which the organizer delivered the pot. Only the organizer, once the
+     * pot was delivered.
+     *
+     * @param command command with the period, the organizer and the image
+     * @return the period with its proof, or an error
+     */
+    Result<Period, ApplicationError> handle(AttachPayoutProofCommand command);
 
     /**
      * What happened after a pot was delivered.

@@ -58,6 +58,9 @@ public class PeriodPersistenceEntity extends AbstractPersistenceEntity {
     @Column(name = "delivered_by")
     private UUID deliveredBy;
 
+    @Column(name = "payout_proof_path", length = 200)
+    private String payoutProofPath;
+
     @OneToMany(mappedBy = "period", cascade = CascadeType.ALL)
     private List<ExpectedContributionPersistenceEntity> expected = new ArrayList<>();
 }
