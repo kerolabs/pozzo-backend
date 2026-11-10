@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,5 +146,18 @@ class PeriodTest {
                 assertThat(expected.isPending()).isTrue());
         assertThat(period.expectedFor(marta)).isEmpty();
         assertThat(period.expectedFor(sofia)).isPresent();
+    }
+
+    @Test
+    void aCreditLowersWhatAMemberOwesAndTheWinnerReceivesThePotLessTheDiscount() {
+        var credited = Period.open(cycle, 1, Map.of(sofia, Money.of(new BigDecimal("25"), Money.PEN)), NOW);
+
+        assertThat(credited.expectedFor(sofia).orElseThrow().getAmount().amount()).isEqualByComparingTo("175");
+        assertThat(credited.potAmount().amount()).isEqualByComparingTo("575");
+
+        credited.applyAuctionResult(marta, Money.of(new BigDecimal("50"), Money.PEN));
+
+        assertThat(credited.getPayoutMembershipId()).isEqualTo(marta);
+        assertThat(credited.payoutAmount().amount()).isEqualByComparingTo("525");
     }
 }

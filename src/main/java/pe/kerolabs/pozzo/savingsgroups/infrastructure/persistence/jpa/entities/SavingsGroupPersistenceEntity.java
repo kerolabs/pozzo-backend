@@ -16,6 +16,7 @@ import lombok.Setter;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.PaymentMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Periodicity;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionFallback;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnMethod;
 import pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.embeddables.TurnSlotEmbeddable;
 import pe.kerolabs.pozzo.shared.infrastructure.persistence.jpa.entities.AbstractPersistenceEntity;
@@ -79,6 +80,16 @@ public class SavingsGroupPersistenceEntity extends AbstractPersistenceEntity {
 
     @Column(name = "turns_assigned_at")
     private Instant turnsAssignedAt;
+
+    @Column(name = "auction_closes_days_before")
+    private Integer auctionClosesDaysBefore;
+
+    @Column(name = "auction_minimum_bid", precision = 12, scale = 2)
+    private BigDecimal auctionMinimumBid;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auction_fallback", length = 10)
+    private AuctionFallback auctionFallback;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)

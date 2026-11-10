@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.savingsgroups.application.commandservices;
 
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsAgreedCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsByAuctionCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsByDrawCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
@@ -27,4 +28,12 @@ public interface TurnCommandService {
      * @return the savings group aggregate with updated turns, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(AssignTurnsAgreedCommand command);
+
+    /**
+     * Decides that each turn is auctioned when its period opens. Only the organizer, before the group starts.
+     *
+     * @param command command with the group, the organizer and the rules of the auction
+     * @return the group with the auction rules, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(AssignTurnsByAuctionCommand command);
 }

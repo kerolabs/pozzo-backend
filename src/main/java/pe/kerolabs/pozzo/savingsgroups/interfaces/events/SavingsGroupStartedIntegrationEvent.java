@@ -29,7 +29,16 @@ public record SavingsGroupStartedIntegrationEvent(UUID groupId, String groupName
                                                   String organizerName, BigDecimal contributionAmount,
                                                   String currency, String periodicity,
                                                   LocalDate firstContributionDate, String destinationMethod,
-                                                  String destinationPhone, List<Turn> turns, Instant startedAt) {
+                                                  String destinationPhone, List<Turn> turns,
+                                                  @Nullable Auction auction, Instant startedAt) {
+
+    /**
+     * The rules of the auction, when the turns are auctioned.
+     *
+     * @param fallback DRAW or ORGANIZER
+     */
+    public record Auction(int closesDaysBeforeCutoff, BigDecimal minimumBid, String fallback) {
+    }
 
     /**
      * A turn of the started group.

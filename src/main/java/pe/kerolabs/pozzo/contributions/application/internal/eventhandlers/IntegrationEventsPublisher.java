@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.events.AuctionClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.AuctionOpenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionCoveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionRejectedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionValidatedEvent;
@@ -19,9 +21,11 @@ import pe.kerolabs.pozzo.contributions.domain.model.events.PotDeliveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionMethod;
+import pe.kerolabs.pozzo.contributions.domain.repositories.AuctionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.ContributionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.PeriodRepository;
+import pe.kerolabs.pozzo.contributions.interfaces.events.AuctionIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationEvent;
@@ -55,14 +59,17 @@ public class IntegrationEventsPublisher {
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ContributionRepository contributionRepository;
+    private final AuctionRepository auctionRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public IntegrationEventsPublisher(CycleRepository cycleRepository, PeriodRepository periodRepository,
                                       ContributionRepository contributionRepository,
+                                      AuctionRepository auctionRepository,
                                       ApplicationEventPublisher eventPublisher) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
         this.contributionRepository = contributionRepository;
+        this.auctionRepository = auctionRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -168,6 +175,24 @@ public class IntegrationEventsPublisher {
         var cycle = cycle(event.cycleId());
         eventPublisher.publishEvent(new CycleMemberDroppedIntegrationEvent(cycle.getId(), cycle.getGroupId(),
                 cycle.getGroupName(), member(cycle, event.membershipId()), event.turnNumber(), event.occurredAt()));
+    }
+
+    @EventListener
+    public void on(AuctionOpenedEvent event) {
+        var cycle = cycle(event.cycleId());
+        eventPublisher.publishEvent(new AuctionIntegrationEvent(event.periodId(), cycle.getId(), cycle.getGroupId(),
+                cycle.getGroupName(), event.turnNumber(), AuctionIntegrationEvent.OPENED, event.closesOn(),
+                cycle.getAuctionSettings().minimumBid().amount(), null, null, members(cycle), event.occurredAt()));
+    }
+
+    @EventListener
+    public void on(AuctionClosedEvent event) {
+        var cycle = cycle(event.cycleId());
+        var period = period(event.periodId());
+        eventPublisher.publishEvent(new AuctionIntegrationEvent(event.periodId(), cycle.getId(), cycle.getGroupId(),
+                cycle.getGroupName(), event.turnNumber(), AuctionIntegrationEvent.CLOSED, period.getCutoffDate(),
+                cycle.getAuctionSettings().minimumBid().amount(), member(cycle, event.winnerMembershipId()),
+                period.payoutAmount().amount(), members(cycle), event.occurredAt()));
     }
 
     private void publishPot(UUID periodId, UUID cycleId, String stage, Instant occurredAt) {

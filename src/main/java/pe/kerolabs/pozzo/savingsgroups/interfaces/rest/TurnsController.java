@@ -22,9 +22,11 @@ import pe.kerolabs.pozzo.savingsgroups.application.commandservices.TurnCommandSe
 import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl.ExternalIamService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsAgreedCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsByAuctionCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AssignTurnsByDrawCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetTurnCalendarQuery;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.AgreedTurnsResource;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.AuctionTurnsResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.TurnCalendarResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.TurnCalendarResourceFromEntityAssembler;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -123,6 +125,33 @@ public class TurnsController {
      * @param groupId the identifier of the savings group
      * @return 200 OK with turn calendar resource, or 404 if not found
      */
+    @PostMapping("/auction")
+    @Operation(summary = "Auction the turns",
+            description = "Each period opens an auction among the members who have not collected; the highest "
+                    + "discount on the pot collects and the discount is shared by the others in the next period. "
+                    + "The order shown until each auction closes is provisional. Only the organizer, once every "
+                    + "seat is taken and before the start.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Auction set",
+                    content = @Content(schema = @Schema(implementation = TurnCalendarResource.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid rules",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "Group not full or already started",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> auctionTurns(@AuthenticationPrincipal AuthenticatedMember member,
+                                          @PathVariable UUID groupId,
+                                          @Valid @RequestBody AuctionTurnsResource resource) {
+        var result = turnCommandService.handle(new AssignTurnsByAuctionCommand(groupId, member.accountId(),
+                resource.closesDaysBeforeCutoff(), resource.minimumBid(), resource.fallback()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                group -> TurnCalendarResourceFromEntityAssembler.toResourceFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
+                HttpStatus.OK);
+    }
+
     @GetMapping
     @Operation(summary = "Get the turn calendar", description = "Only for members of the group.")
     @ApiResponses({

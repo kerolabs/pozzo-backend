@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.contributions.application.queryservices;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetAuctionQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
@@ -62,4 +63,10 @@ public interface ContributionQueryService {
      * points to nothing or the contribution no longer counts for the pot.
      */
     Optional<VerifiedContributionView> handle(GetVerifiedContributionQuery query);
+
+    /**
+     * The auction of a period, for a member of the cycle; empty when the period has no auction or the requester
+     * is not a member.
+     */
+    Optional<AuctionView> handle(GetAuctionQuery query);
 }

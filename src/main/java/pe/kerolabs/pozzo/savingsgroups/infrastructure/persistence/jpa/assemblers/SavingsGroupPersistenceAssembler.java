@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.assembler
 
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Money;
@@ -51,6 +52,10 @@ public final class SavingsGroupPersistenceAssembler {
                 entity.getStatus(),
                 entity.getCreatedAt(),
                 entity.getStartedAt());
+        if (entity.getAuctionFallback() != null) {
+            group.restoreAuctionRules(new AuctionRules(entity.getAuctionClosesDaysBefore(),
+                    new Money(entity.getAuctionMinimumBid(), entity.getCurrency()), entity.getAuctionFallback()));
+        }
         return group;
     }
 
@@ -75,6 +80,10 @@ public final class SavingsGroupPersistenceAssembler {
         entity.setTurnMethod(group.getTurnMethod());
         entity.setDrawSeed(group.getDrawSeed());
         entity.setTurnsAssignedAt(group.getTurnsAssignedAt());
+        var auction = group.getAuctionRules();
+        entity.setAuctionClosesDaysBefore(auction == null ? null : auction.closesDaysBeforeCutoff());
+        entity.setAuctionMinimumBid(auction == null ? null : auction.minimumBid().amount());
+        entity.setAuctionFallback(auction == null ? null : auction.fallback());
         entity.setStatus(group.getStatus());
         entity.setCreatedAt(group.getCreatedAt());
         entity.setStartedAt(group.getStartedAt());

@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberDroppedEve
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleStartedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionSettings;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
@@ -41,6 +42,7 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
     private CycleStatus status;
     private Instant startedAt;
     private @Nullable Instant closedAt;
+    private @Nullable AuctionSettings auctionSettings;
 
     public Cycle() {
     }
@@ -50,6 +52,15 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
      */
     public static Cycle start(UUID groupId, String groupName, UUID organizerAccountId, CycleRules rules,
                               List<CycleTurn> turns, Instant now) {
+        return start(groupId, groupName, organizerAccountId, rules, turns, null, now);
+    }
+
+    /**
+     * Starts the cycle of a group. With auction settings, the order of the turns is provisional: each period
+     * auctions its turn among the members who have not collected.
+     */
+    public static Cycle start(UUID groupId, String groupName, UUID organizerAccountId, CycleRules rules,
+                              List<CycleTurn> turns, @Nullable AuctionSettings auctionSettings, Instant now) {
         if (turns.size() < 2) {
             throw new IllegalArgumentException("A cycle needs at least two members");
         }
@@ -63,6 +74,7 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         cycle.currentTurn = 1;
         cycle.status = CycleStatus.ACTIVE;
         cycle.startedAt = now;
+        cycle.auctionSettings = auctionSettings;
         cycle.registerDomainEvent(new CycleStartedEvent(cycle.id, groupId, now));
         return cycle;
     }
@@ -207,6 +219,44 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         var replacement = new CycleTurn(dropped.turnNumber(), replacementMembershipId, accountId, displayName);
         turns.set(turns.indexOf(dropped), replacement);
         return replacement;
+    }
+
+    public boolean isAuction() {
+        return auctionSettings != null;
+    }
+
+    /**
+     * The members who have not collected yet: the holder of the turn in progress and of every later turn.
+     */
+    public List<CycleTurn> stillToCollect() {
+        return turns.stream().filter(turn -> turn.turnNumber() >= currentTurn).toList();
+    }
+
+    /**
+     * Gives the turn in progress to the winner of its auction, who takes it from its provisional holder. Both
+     * have not collected yet, so they swap their turns.
+     */
+    public void giveCurrentTurnTo(UUID winnerMembershipId) {
+        var holder = turn(currentTurn);
+        if (holder.membershipId().equals(winnerMembershipId)) {
+            return;
+        }
+        var winner = findParticipant(winnerMembershipId)
+                .filter(turn -> turn.turnNumber() > currentTurn)
+                .orElseThrow(() -> new BusinessRuleViolationException("ALREADY_COLLECTED",
+                        "Only a member who has not collected can win the turn"));
+        turns.set(turns.indexOf(holder), new CycleTurn(winner.turnNumber(), holder.membershipId(), holder.accountId(),
+                holder.displayName()));
+        turns.set(turns.indexOf(winner), new CycleTurn(currentTurn, winner.membershipId(), winner.accountId(),
+                winner.displayName()));
+        turns.sort(Comparator.comparingInt(CycleTurn::turnNumber));
+    }
+
+    /**
+     * Restores the auction settings from persistence.
+     */
+    public void restoreAuctionSettings(@Nullable AuctionSettings auctionSettings) {
+        this.auctionSettings = auctionSettings;
     }
 
     public List<CycleTurn> getTurns() {

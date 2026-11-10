@@ -16,6 +16,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
@@ -56,6 +57,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     private @Nullable TurnMethod turnMethod;
     private @Nullable String drawSeed;
     private @Nullable Instant turnsAssignedAt;
+    private @Nullable AuctionRules auctionRules;
     private GroupStatus status;
     private Instant createdAt;
     private @Nullable Instant startedAt;
@@ -307,6 +309,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         requireValidOrder(slots);
         this.turns = new ArrayList<>(slots);
         this.turnMethod = method;
+        this.auctionRules = null;
         this.drawSeed = seed;
         this.turnsAssignedAt = now;
         registerDomainEvent(new TurnsAssignedEvent(id, method, now));
@@ -428,6 +431,37 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         registerDomainEvent(new MemberReplacedEvent(id, droppedMembershipId, replacement.getId(), accountId,
                 replacement.getDisplayName(), turn.turnNumber(), now));
         return replacement;
+    }
+
+    /**
+     * Decides that each turn is auctioned when its period opens. The members get a provisional order, only so
+     * the cycle has a turn per member: each auction gives the turn in progress to its winner.
+     */
+    public void assignTurnsByAuction(AuctionRules rules, Instant now) {
+        requireNotStarted();
+        if (!isFull()) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_FULL",
+                    "Every seat must be taken before assigning the turns");
+        }
+        var members = activeMemberships();
+        var slots = new ArrayList<TurnSlot>();
+        for (var index = 0; index < members.size(); index++) {
+            slots.add(new TurnSlot(index + 1, members.get(index).getId(), TurnMethod.AUCTION));
+        }
+        this.turns = slots;
+        this.turnMethod = TurnMethod.AUCTION;
+        this.drawSeed = null;
+        this.turnsAssignedAt = now;
+        this.auctionRules = rules;
+        registerDomainEvent(new TurnsAssignedEvent(id, TurnMethod.AUCTION, now));
+        refreshReadiness();
+    }
+
+    /**
+     * Restores the auction rules from persistence.
+     */
+    public void restoreAuctionRules(@Nullable AuctionRules auctionRules) {
+        this.auctionRules = auctionRules;
     }
 
     /**
