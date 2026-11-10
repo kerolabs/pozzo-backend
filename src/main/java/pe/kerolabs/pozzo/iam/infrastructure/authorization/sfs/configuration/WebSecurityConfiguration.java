@@ -78,6 +78,7 @@ public class WebSecurityConfiguration {
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(HttpMethod.POST, PUBLIC_AUTHENTICATION).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/compliance/shared/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/contributions/shared/*").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new BearerAuthorizationRequestFilter(accountQueryService),
                         UsernamePasswordAuthenticationFilter.class);

@@ -65,6 +65,23 @@ public class ContributionSteps {
         assertThat(state.response().status()).isEqualTo(201);
     }
 
+    @When("{string} shares the contribution")
+    public void sharesTheContribution(String name) {
+        state.keepResponse(api.post("/api/v1/contributions/" + state.contributionOf(name) + "/share",
+                state.member(name), null));
+    }
+
+    @Then("anyone who opens the link sees the contribution of {string} of S\\/ {int} with the operation ending {string}")
+    public void anyoneSeesTheSharedContribution(String name, int amount, String ending) {
+        var token = state.response().text("$.token");
+        assertThat(state.response().text("$.url")).endsWith(token);
+        var shared = api.get("/api/v1/contributions/shared/" + token, null);
+        assertThat(shared.status()).as(shared.body()).isEqualTo(200);
+        assertThat(shared.text("$.memberName")).isEqualTo(name);
+        assertThat(shared.<Number>read("$.amount").intValue()).isEqualTo(amount);
+        assertThat(shared.text("$.operationNumberEnding")).isEqualTo(ending);
+    }
+
     @Then("the contribution is in status {string} without inconsistencies")
     public void isValidatedWithoutInconsistencies(String status) {
         theContributionIsInStatus(status);

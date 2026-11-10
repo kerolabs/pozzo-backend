@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributio
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
 
@@ -55,4 +56,10 @@ public interface ContributionQueryService {
      * member of the cycle; empty when the requester is not a member or there is no image.
      */
     Optional<ReceiptImageLink> handle(GetPayoutProofQuery query);
+
+    /**
+     * The contribution a public verification link points to, for anyone with the link; empty when the token
+     * points to nothing or the contribution no longer counts for the pot.
+     */
+    Optional<VerifiedContributionView> handle(GetVerifiedContributionQuery query);
 }

@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContrib
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ReviewContributionCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
 
@@ -62,4 +63,13 @@ public interface ContributionCommandService {
      * @return the updated contribution aggregate with image path, or an error
      */
     Result<Contribution, ApplicationError> handle(AttachReceiptImageCommand command);
+
+    /**
+     * Gives the public link that proves a contribution was registered. Only for a contribution that counts
+     * for the pot, and only the member it counts for or the organizer.
+     *
+     * @param command command with the contribution and the requester
+     * @return the contribution with its verification token, or an error
+     */
+    Result<Contribution, ApplicationError> handle(ShareContributionCommand command);
 }

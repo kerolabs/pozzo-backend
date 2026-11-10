@@ -12,6 +12,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContrib
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ReviewContributionCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ExpectedStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.PaymentReceipt;
@@ -169,6 +170,22 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
         }
         var path = receiptImageStorage.store(command.contributionId(), command.content(), command.contentType());
         contribution.get().attachReceiptImage(path);
+        return Result.success(contributionRepository.save(contribution.get()));
+    }
+
+    @Override
+    public Result<Contribution, ApplicationError> handle(ShareContributionCommand command) {
+        var requester = command.requesterAccountId();
+        // Anyone else gets the same answer as for a contribution that does not exist.
+        var contribution = contributionRepository.findById(command.contributionId())
+                .filter(found -> requester.equals(found.getAccountId())
+                        || cycleRepository.findById(found.getCycleId())
+                        .filter(cycle -> cycle.isOrganizer(requester))
+                        .isPresent());
+        if (contribution.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Contribution", command.contributionId().toString()));
+        }
+        contribution.get().shareVerifiably();
         return Result.success(contributionRepository.save(contribution.get()));
     }
 

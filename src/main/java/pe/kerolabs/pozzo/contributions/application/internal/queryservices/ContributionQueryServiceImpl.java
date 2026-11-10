@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.queryservices.ContributionQueryService;
 import pe.kerolabs.pozzo.contributions.application.queryservices.PeriodView;
+import pe.kerolabs.pozzo.contributions.application.queryservices.VerifiedContributionView;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
@@ -14,6 +15,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributio
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageRules;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
@@ -120,6 +122,15 @@ public class ContributionQueryServiceImpl implements ContributionQueryService {
                 .filter(Period::hasPayoutProof)
                 .filter(period -> findForParticipant(period.getCycleId(), query.requesterAccountId()).isPresent())
                 .map(period -> receiptImageStorage.link(period.getPayoutProofPath(), ReceiptImageRules.LINK_VALIDITY));
+    }
+
+    @Override
+    public Optional<VerifiedContributionView> handle(GetVerifiedContributionQuery query) {
+        return contributionRepository.findByVerificationToken(query.token())
+                .filter(Contribution::isValid)
+                .flatMap(contribution -> cycleRepository.findById(contribution.getCycleId())
+                        .flatMap(cycle -> periodRepository.findById(contribution.getPeriodId())
+                                .map(period -> new VerifiedContributionView(contribution, cycle, period))));
     }
 
     private Optional<Cycle> findForParticipant(UUID cycleId, UUID requesterAccountId) {

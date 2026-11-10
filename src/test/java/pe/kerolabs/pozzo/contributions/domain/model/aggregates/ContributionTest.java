@@ -144,6 +144,25 @@ class ContributionTest {
         assertThat(late.arrivedBy(CUTOFF, ZoneId.of("America/Lima"))).isFalse();
     }
 
+    void aSettledContributionAlwaysGivesTheSameVerificationLink() {
+        var contribution = Contribution.inCash(cycleId, periodId, membershipId, accountId, EXPECTED,
+                LocalDate.parse("2026-10-10"), CUTOFF, organizerId, NOW);
+
+        var first = contribution.shareVerifiably();
+
+        assertThat(contribution.shareVerifiably()).isEqualTo(first);
+    }
+
+    @Test
+    void aContributionUnderReviewCannotBeShared() {
+        var contribution = Contribution.fromReceipt(cycleId, periodId, membershipId, accountId,
+                receipt("150", "Anna Weber", "2026-10-10"), EXPECTED, CUTOFF, "Anna Weber", NOW);
+
+        assertThatThrownBy(contribution::shareVerifiably)
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("CONTRIBUTION_NOT_SETTLED");
+    }
+
     @Test
     void aCoverageRecordsWhoPutTheMoney() {
         var coveredBy = UUID.randomUUID();
