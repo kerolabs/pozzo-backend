@@ -6,10 +6,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 import pe.kerolabs.pozzo.notifications.application.commandservices.NotificationCommandService;
 import pe.kerolabs.pozzo.notifications.application.internal.texts.NotificationTexts;
+import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelGroupRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.SendAlertCommand;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupDeletedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupFilledIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberDroppedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberJoinedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberReplacedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupNewCycleOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupRulesUpdatedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupStartedIntegrationEvent;
 
@@ -35,6 +39,37 @@ public class SavingsGroupEventsHandler {
                         event.groupId(), null,
                         NotificationTexts.groupStarted(event.groupName(), turn.turnNumber(), event.groupId()),
                         "started:" + event.groupId() + ":" + turn.accountId())));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(SavingsGroupNewCycleOpenedIntegrationEvent event) {
+        event.memberAccountIds().forEach(accountId -> notificationCommandService.handle(new SendAlertCommand(
+                accountId, event.groupId(), null, NotificationTexts.newCycleOpened(event.groupName(), event.groupId()),
+                "new-cycle:" + event.groupId() + ":" + accountId)));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(SavingsGroupMemberDroppedIntegrationEvent event) {
+        if (event.accountId() != null) {
+            notificationCommandService.handle(new CancelGroupRemindersCommand(event.groupId(), event.accountId()));
+        }
+        event.otherMemberAccountIds().forEach(accountId -> notificationCommandService.handle(new SendAlertCommand(
+                accountId, event.groupId(), null,
+                NotificationTexts.memberDropped(event.displayName(), event.groupName(), event.groupId()),
+                "dropout:" + event.membershipId() + ":" + accountId)));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(SavingsGroupMemberReplacedIntegrationEvent event) {
+        if (event.accountId() == null) {
+            return;
+        }
+        notificationCommandService.handle(new SendAlertCommand(event.accountId(), event.groupId(), null,
+                NotificationTexts.joinedAsReplacement(event.groupName(), event.turnNumber(), event.groupId()),
+                "replacement:" + event.replacementMembershipId()));
     }
 
     @TransactionalEventListener(fallbackExecution = true)

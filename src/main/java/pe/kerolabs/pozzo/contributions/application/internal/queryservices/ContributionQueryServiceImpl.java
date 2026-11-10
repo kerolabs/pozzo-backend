@@ -3,23 +3,30 @@ package pe.kerolabs.pozzo.contributions.application.internal.queryservices;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.queryservices.ContributionQueryService;
+import pe.kerolabs.pozzo.contributions.application.queryservices.AuctionView;
 import pe.kerolabs.pozzo.contributions.application.queryservices.PeriodView;
+import pe.kerolabs.pozzo.contributions.application.queryservices.VerifiedContributionView;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
+import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetAuctionQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageRules;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
+import pe.kerolabs.pozzo.contributions.domain.repositories.AuctionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.ContributionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.PeriodRepository;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,21 +38,21 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ContributionQueryServiceImpl implements ContributionQueryService {
 
-    /** Long enough to open the image, short enough that a copied link soon stops working. */
-    private static final Duration RECEIPT_LINK_VALIDITY = Duration.ofMinutes(15);
-
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ContributionRepository contributionRepository;
     private final ReceiptImageStorage receiptImageStorage;
+    private final AuctionRepository auctionRepository;
 
     public ContributionQueryServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository,
                                         ContributionRepository contributionRepository,
-                                        ReceiptImageStorage receiptImageStorage) {
+                                        ReceiptImageStorage receiptImageStorage,
+                                        AuctionRepository auctionRepository) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
         this.contributionRepository = contributionRepository;
         this.receiptImageStorage = receiptImageStorage;
+        this.auctionRepository = auctionRepository;
     }
 
     @Override
@@ -110,7 +117,32 @@ public class ContributionQueryServiceImpl implements ContributionQueryService {
                         || findForParticipant(contribution.getCycleId(), requester)
                         .filter(cycle -> cycle.isOrganizer(requester))
                         .isPresent())
-                .map(contribution -> receiptImageStorage.link(contribution.getReceiptImagePath(), RECEIPT_LINK_VALIDITY));
+                .map(contribution -> receiptImageStorage.link(contribution.getReceiptImagePath(), ReceiptImageRules.LINK_VALIDITY));
+    }
+
+    @Override
+    public Optional<ReceiptImageLink> handle(GetPayoutProofQuery query) {
+        return periodRepository.findById(query.periodId())
+                .filter(Period::hasPayoutProof)
+                .filter(period -> findForParticipant(period.getCycleId(), query.requesterAccountId()).isPresent())
+                .map(period -> receiptImageStorage.link(period.getPayoutProofPath(), ReceiptImageRules.LINK_VALIDITY));
+    }
+
+    @Override
+    public Optional<VerifiedContributionView> handle(GetVerifiedContributionQuery query) {
+        return contributionRepository.findByVerificationToken(query.token())
+                .filter(Contribution::isValid)
+                .flatMap(contribution -> cycleRepository.findById(contribution.getCycleId())
+                        .flatMap(cycle -> periodRepository.findById(contribution.getPeriodId())
+                                .map(period -> new VerifiedContributionView(contribution, cycle, period))));
+    }
+
+    @Override
+    public Optional<AuctionView> handle(GetAuctionQuery query) {
+        return periodRepository.findById(query.periodId())
+                .flatMap(period -> findForParticipant(period.getCycleId(), query.requesterAccountId())
+                        .flatMap(cycle -> auctionRepository.findByPeriodId(period.getId())
+                                .map(auction -> new AuctionView(auction, cycle, period))));
     }
 
     private Optional<Cycle> findForParticipant(UUID cycleId, UUID requesterAccountId) {

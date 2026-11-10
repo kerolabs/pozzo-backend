@@ -32,6 +32,27 @@ class ReminderPlanTest {
     }
 
     @Test
+    void remindsEveryDayAfterTheCutoffAtTheSameHour() {
+        var plan = ReminderPlan.defaultFor(UUID.randomUUID(), NOW);
+
+        var schedule = plan.overdueScheduleFor(LocalDate.parse("2026-10-20"), LIMA);
+
+        assertThat(schedule).hasSize(ReminderPlan.OVERDUE_DAYS);
+        assertThat(schedule).containsEntry(1, Instant.parse("2026-10-21T14:00:00Z"));
+        assertThat(schedule).containsEntry(2, Instant.parse("2026-10-22T14:00:00Z"));
+        assertThat(schedule).containsEntry(ReminderPlan.OVERDUE_DAYS, Instant.parse("2026-11-19T14:00:00Z"));
+    }
+
+    @Test
+    void aDisabledPlanSendsNoDailyReminders() {
+        var plan = ReminderPlan.defaultFor(UUID.randomUUID(), NOW);
+
+        plan.configure(List.of(1), 9, false, NOW);
+
+        assertThat(plan.overdueScheduleFor(LocalDate.parse("2026-10-20"), LIMA)).isEmpty();
+    }
+
+    @Test
     void theOrganizerChoosesTheDaysAndTheHour() {
         var plan = ReminderPlan.defaultFor(UUID.randomUUID(), NOW);
 

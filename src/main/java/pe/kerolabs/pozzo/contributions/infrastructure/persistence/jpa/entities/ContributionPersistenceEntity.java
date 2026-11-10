@@ -95,6 +95,12 @@ public class ContributionPersistenceEntity extends AbstractPersistenceEntity {
     @Column(name = "receipt_source", length = 10)
     private ReceiptSource receiptSource;
 
+    @Column(name = "received_on")
+    private LocalDate receivedOn;
+
+    @Column(name = "verification_token", length = 40, unique = true)
+    private String verificationToken;
+
     @Column(name = "covered_by_membership_id")
     private UUID coveredByMembershipId;
 

@@ -3,15 +3,20 @@ package pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberDroppedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
-import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.PaymentMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Periodicity;
@@ -133,6 +138,62 @@ class SavingsGroupTest {
     }
 
     @Test
+    void aMemberWithoutTheApplicationLinksTheAccountSignedUpWithTheSameNumber() {
+        var manual = group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        group.clearDomainEvents();
+        var marta = UUID.randomUUID();
+
+        var linked = group.linkManualMember("+51923456789", marta, NOW);
+
+        assertThat(linked).hasValueSatisfying(membership -> {
+            assertThat(membership.getId()).isEqualTo(manual.getId());
+            assertThat(membership.getKind()).isEqualTo(MembershipKind.APP);
+        });
+        assertThat(group.isMember(marta)).isTrue();
+        assertThat(group.domainEvents()).singleElement().isInstanceOf(MemberLinkedEvent.class);
+    }
+
+    @Test
+    void nothingIsLinkedForAnotherNumberOrAnAccountAlreadyInTheGroup() {
+        group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        var sofia = UUID.randomUUID();
+        group.join(sofia, "Sofia Gonzales", NOW);
+
+        assertThat(group.linkManualMember("+51911111111", UUID.randomUUID(), NOW)).isEmpty();
+        assertThat(group.linkManualMember("+51923456789", sofia, NOW)).isEmpty();
+    }
+
+    @Test
+    void aClosedGroupOpensItsNextCycleWithTheSameRulesAndMembers() {
+        var marta = group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        group.join(UUID.randomUUID(), "Sofia Gonzales", NOW);
+        drawTurns();
+        group.defineDestination(yape(), NOW);
+        group.start(NOW);
+        group.close();
+
+        var next = group.openNewCycle(LocalDate.parse("2027-01-20"), NOW);
+
+        assertThat(next.getId()).isNotEqualTo(group.getId());
+        assertThat(next.getStatus()).isEqualTo(GroupStatus.DRAFT);
+        assertThat(next.getRules().firstContributionDate()).isEqualTo(LocalDate.parse("2027-01-20"));
+        assertThat(next.getRules().destination()).isEqualTo(yape());
+        assertThat(next.activeMemberships()).extracting(Membership::getDisplayName)
+                .containsExactlyInAnyOrder("Anna Weber", "Marta Quispe", "Sofia Gonzales");
+        assertThat(next.activeMemberships()).filteredOn(membership -> membership.getPhone() != null)
+                .singleElement().satisfies(membership -> assertThat(membership.getPhone()).isEqualTo(marta.getPhone()));
+        assertThat(next.hasTurns()).isFalse();
+        assertThat(next.domainEvents()).hasAtLeastOneElementOfType(NewCycleOpenedEvent.class);
+    }
+
+    @Test
+    void aGroupWhoseCycleIsNotOverCannotOpenANewOne() {
+        assertThatThrownBy(() -> group.openNewCycle(LocalDate.parse("2027-01-20"), NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("SAVINGS_GROUP_NOT_CLOSED");
+    }
+
+    @Test
     void theSeatsCannotGoBelowTheMembersAlreadyIn() {
         fill();
 
@@ -189,5 +250,47 @@ class SavingsGroupTest {
         assertThatThrownBy(() -> group.updateRules("Junta de la familia Weber", rules(3, yape()), NOW))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("SAVINGS_GROUP_ALREADY_STARTED");
+    }
+
+    @Test
+    void aMemberDropsOutOfAStartedGroupAndSomeoneElseTakesTheirTurn() {
+        var sofia = group.join(UUID.randomUUID(), "Sofia Gonzales", NOW);
+        group.join(UUID.randomUUID(), "Jorge Ramos", NOW);
+        drawTurns();
+        group.defineDestination(yape(), NOW);
+        group.start(NOW);
+        var sofiaTurn = group.turnOf(sofia.getId()).orElseThrow().turnNumber();
+
+        group.registerDropout(sofia.getId(), NOW);
+        var rosa = group.replaceDroppedMember(sofia.getId(), null, "Rosa Medina", null, NOW);
+
+        assertThat(sofia.isDropped()).isTrue();
+        assertThat(rosa.getStatus()).isEqualTo(MembershipStatus.REPLACEMENT);
+        assertThat(group.turnOf(rosa.getId()).orElseThrow().turnNumber()).isEqualTo(sofiaTurn);
+        assertThat(group.turnOf(sofia.getId())).isEmpty();
+        assertThat(group.domainEvents()).hasAtLeastOneElementOfType(MemberDroppedEvent.class)
+                .hasAtLeastOneElementOfType(MemberReplacedEvent.class);
+        assertThatThrownBy(() -> group.replaceDroppedMember(sofia.getId(), null, "Otra persona", null, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("MEMBER_ALREADY_REPLACED");
+    }
+
+    @Test
+    void onlyAMemberOtherThanTheOrganizerOfAStartedGroupDropsOut() {
+        var sofia = group.join(UUID.randomUUID(), "Sofia Gonzales", NOW);
+
+        assertThatThrownBy(() -> group.registerDropout(sofia.getId(), NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("SAVINGS_GROUP_NOT_STARTED");
+
+        group.join(UUID.randomUUID(), "Jorge Ramos", NOW);
+        drawTurns();
+        group.defineDestination(yape(), NOW);
+        group.start(NOW);
+        var organizer = group.membershipOf(anna).orElseThrow();
+
+        assertThatThrownBy(() -> group.registerDropout(organizer.getId(), NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("ORGANIZER_CANNOT_DROP_OUT");
     }
 }

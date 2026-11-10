@@ -43,6 +43,22 @@ public class NotificationRepositoryImpl implements NotificationRepository {
     }
 
     @Override
+    public List<Notification> findScheduledRemindersByGroupId(UUID groupId) {
+        return persistenceRepository.findAllByGroupIdAndKindAndStatus(groupId, NotificationKind.REMINDER,
+                        NotificationStatus.SCHEDULED).stream()
+                .map(NotificationRepositoryImpl::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Notification> findScheduledRemindersByGroupIdAndAccountId(UUID groupId, UUID accountId) {
+        return persistenceRepository.findAllByGroupIdAndAccountIdAndKindAndStatus(groupId, accountId,
+                        NotificationKind.REMINDER, NotificationStatus.SCHEDULED).stream()
+                .map(NotificationRepositoryImpl::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByDedupKey(String dedupKey) {
         return persistenceRepository.existsByDedupKey(dedupKey);
     }

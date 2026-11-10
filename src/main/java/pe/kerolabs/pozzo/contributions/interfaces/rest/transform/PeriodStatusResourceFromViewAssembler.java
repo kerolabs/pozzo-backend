@@ -57,6 +57,8 @@ public class PeriodStatusResourceFromViewAssembler {
                 cycle.totalTurns(),
                 me == null ? PENDING : statusOf(view, me, today),
                 period.getDeliveredAt(),
+                period.hasPayoutProof(),
+                period.payoutAmount().amount(),
                 members);
     }
 

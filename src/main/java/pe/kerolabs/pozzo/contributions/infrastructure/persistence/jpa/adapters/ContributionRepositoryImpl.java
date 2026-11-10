@@ -49,6 +49,12 @@ public class ContributionRepositoryImpl implements ContributionRepository {
     }
 
     @Override
+    public Optional<Contribution> findByVerificationToken(String token) {
+        return persistenceRepository.findByVerificationToken(token)
+                .map(ContributionPersistenceAssembler::toDomainFromPersistence);
+    }
+
+    @Override
     public boolean existsByCycleIdAndOperationNumber(UUID cycleId, String operationNumber) {
         return persistenceRepository.existsByCycleIdAndReceiptOperationNumber(cycleId, operationNumber);
     }

@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,5 +116,49 @@ class PeriodTest {
         assertThatThrownBy(() -> period.deliverPot(organizerAccount, NOW))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("POT_ALREADY_DELIVERED");
+    }
+
+    @Test
+    void theTransferOfThePotIsKeptOnlyOnceItWasDelivered() {
+        period.settle(anna, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(marta, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+
+        assertThatThrownBy(() -> period.attachPayoutProof("period/transfer.png"))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("POT_NOT_DELIVERED");
+
+        period.deliverPot(organizerAccount, NOW);
+        period.attachPayoutProof("period/transfer.png");
+
+        assertThat(period.hasPayoutProof()).isTrue();
+        assertThat(period.getPayoutProofPath()).isEqualTo("period/transfer.png");
+    }
+
+    @Test
+    void theReplacementOwesWhatTheMemberWhoDroppedOutStillOwed() {
+        var rosa = UUID.randomUUID();
+        period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+
+        period.reassignMember(marta, rosa);
+        period.reassignMember(sofia, UUID.randomUUID());
+
+        assertThat(period.expectedFor(rosa)).hasValueSatisfying(expected ->
+                assertThat(expected.isPending()).isTrue());
+        assertThat(period.expectedFor(marta)).isEmpty();
+        assertThat(period.expectedFor(sofia)).isPresent();
+    }
+
+    @Test
+    void aCreditLowersWhatAMemberOwesAndTheWinnerReceivesThePotLessTheDiscount() {
+        var credited = Period.open(cycle, 1, Map.of(sofia, Money.of(new BigDecimal("25"), Money.PEN)), NOW);
+
+        assertThat(credited.expectedFor(sofia).orElseThrow().getAmount().amount()).isEqualByComparingTo("175");
+        assertThat(credited.potAmount().amount()).isEqualByComparingTo("575");
+
+        credited.applyAuctionResult(marta, Money.of(new BigDecimal("50"), Money.PEN));
+
+        assertThat(credited.getPayoutMembershipId()).isEqualTo(marta);
+        assertThat(credited.payoutAmount().amount()).isEqualByComparingTo("525");
     }
 }

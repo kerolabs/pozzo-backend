@@ -25,3 +25,53 @@ Feature: TS04 Turns service
     When "Anna Weber" draws the turns
     Then the service responds 422 Unprocessable Entity
     And the error code is "SAVINGS_GROUP_NOT_FULL"
+
+  Scenario: Swap two turns whose periods have not started
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Anna Weber" swaps the turns of "Sofia Gonzales" and "Jorge Ramos"
+    Then the service responds 200 OK
+    And the calendar of the group follows the order "Anna Weber", "Jorge Ramos", "Sofia Gonzales"
+    And "Sofia Gonzales" has the notice "Cambió tu turno"
+
+  Scenario: A turn whose period started cannot be swapped
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Anna Weber" swaps the turns of "Anna Weber" and "Jorge Ramos"
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "TURN_ALREADY_STARTED"
+
+  Scenario: Only the organizer swaps turns
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Sofia Gonzales" swaps the turns of "Sofia Gonzales" and "Jorge Ramos"
+    Then the service responds 403 Forbidden
+
+  Scenario: Auction the turns
+    When "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
+    Then the service responds 200 OK
+    And the group is in status "READY"
+
+  Scenario: The highest bid collects the turn
+    Given "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
+    And "Anna Weber" starts the group
+    And "Sofia Gonzales" bids S/ 50 for the turn
+    And "Jorge Ramos" bids S/ 30 for the turn
+    When "Anna Weber" closes the auction of the turn
+    Then the service responds 200 OK
+    And "Sofia Gonzales" wins the turn by "BID" and receives S/ 550
+    And "Jorge Ramos" has the notice "Subasta cerrada"
+
+  Scenario: A bid below the minimum
+    Given "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
+    And "Anna Weber" starts the group
+    When "Sofia Gonzales" bids S/ 10 for the turn
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "BID_BELOW_MINIMUM"
+
+  Scenario: Without bids the turn goes by draw without discount
+    Given "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
+    And "Anna Weber" starts the group
+    When "Anna Weber" closes the auction of the turn
+    Then the service responds 200 OK
+    And the turn went by "DRAW" and its member receives S/ 600

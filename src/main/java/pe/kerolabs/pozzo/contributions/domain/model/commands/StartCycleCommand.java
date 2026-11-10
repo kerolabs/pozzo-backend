@@ -1,5 +1,7 @@
 package pe.kerolabs.pozzo.contributions.domain.model.commands;
 
+import org.jspecify.annotations.Nullable;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionSettings;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Periodicity;
 
@@ -15,5 +17,5 @@ import java.util.UUID;
 public record StartCycleCommand(UUID groupId, String groupName, UUID organizerAccountId, String organizerName,
                                 BigDecimal contributionAmount, String currency, Periodicity periodicity,
                                 LocalDate firstContributionDate, String destinationMethod, String destinationPhone,
-                                List<CycleTurn> turns) {
+                                List<CycleTurn> turns, @Nullable AuctionSettings auction) {
 }

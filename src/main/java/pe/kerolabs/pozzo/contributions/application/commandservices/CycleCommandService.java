@@ -2,8 +2,13 @@ package pe.kerolabs.pozzo.contributions.application.commandservices;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCycleDropoutCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReplaceCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
 
@@ -28,6 +33,48 @@ public interface CycleCommandService {
      * @return pot delivery result containing the cycle, delivered period, and optional next period
      */
     Result<PotDelivery, ApplicationError> handle(DeliverPotCommand command);
+
+    /**
+     * Gives the turn of a member who took part without the application to the account they signed up with.
+     * Nothing changes when the group has not started its cycle yet.
+     *
+     * @param command command with the group, the membership and the account
+     * @return true when a turn was linked
+     */
+    Result<Boolean, ApplicationError> handle(LinkCycleMemberCommand command);
+
+    /**
+     * Keeps the image of the transfer with which the organizer delivered the pot. Only the organizer, once the
+     * pot was delivered.
+     *
+     * @param command command with the period, the organizer and the image
+     * @return the period with its proof, or an error
+     */
+    Result<Period, ApplicationError> handle(AttachPayoutProofCommand command);
+
+    /**
+     * Swaps the turns of two members whose periods have not started. Only the organizer.
+     *
+     * @param command command with the cycle, the organizer and the two memberships
+     * @return the cycle with the new order, or an error
+     */
+    Result<Cycle, ApplicationError> handle(SwapTurnsCommand command);
+
+    /**
+     * Records in the cycle that a member dropped out.
+     *
+     * @param command command with the group and the membership
+     * @return the cycle, or an error
+     */
+    Result<Cycle, ApplicationError> handle(RegisterCycleDropoutCommand command);
+
+    /**
+     * Gives the turn and the pending contributions of a member who dropped out to their replacement.
+     *
+     * @param command command with the group, the dropped membership and the replacement
+     * @return the cycle, or an error
+     */
+    Result<Cycle, ApplicationError> handle(ReplaceCycleMemberCommand command);
 
     /**
      * What happened after a pot was delivered.

@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.acceptance;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.support.PozzoApi;
 import pe.kerolabs.pozzo.support.PozzoApi.Response;
 
@@ -17,6 +18,9 @@ public class ContributionSteps {
 
     private final PozzoApi api;
     private final ScenarioState state;
+
+    /** The period whose pot was delivered last in this scenario. */
+    private @Nullable String deliveredPeriodId;
 
     public ContributionSteps(PozzoApi api, ScenarioState state) {
         this.api = api;
@@ -61,6 +65,49 @@ public class ContributionSteps {
         assertThat(state.response().status()).isEqualTo(201);
     }
 
+    @When("{string} shares the contribution")
+    public void sharesTheContribution(String name) {
+        state.keepResponse(api.post("/api/v1/contributions/" + state.contributionOf(name) + "/share",
+                state.member(name), null));
+    }
+
+    @Then("anyone who opens the link sees the contribution of {string} of S\\/ {int} with the operation ending {string}")
+    public void anyoneSeesTheSharedContribution(String name, int amount, String ending) {
+        var token = state.response().text("$.token");
+        assertThat(state.response().text("$.url")).endsWith(token);
+        var shared = api.get("/api/v1/contributions/shared/" + token, null);
+        assertThat(shared.status()).as(shared.body()).isEqualTo(200);
+        assertThat(shared.text("$.memberName")).isEqualTo(name);
+        assertThat(shared.<Number>read("$.amount").intValue()).isEqualTo(amount);
+        assertThat(shared.text("$.operationNumberEnding")).isEqualTo(ending);
+    }
+
+    @When("{string} bids S\\/ {int} for the turn")
+    public void bidsForTheTurn(String name, int amount) {
+        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/auction/bids", state.member(name),
+                Map.of("amount", amount)));
+    }
+
+    @When("{string} closes the auction of the turn")
+    public void closesTheAuction(String organizer) {
+        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/auction/close",
+                state.member(organizer), null));
+    }
+
+    @Then("{string} wins the turn by {string} and receives S\\/ {int}")
+    public void winsTheTurn(String name, String resolution, int amount) {
+        assertThat(state.response().text("$.winnerName")).isEqualTo(name);
+        assertThat(state.response().text("$.resolution")).isEqualTo(resolution);
+        assertThat(state.response().<Number>read("$.payoutAmount").intValue()).isEqualTo(amount);
+    }
+
+    @Then("the turn went by {string} and its member receives S\\/ {int}")
+    public void theTurnWentBy(String resolution, int amount) {
+        assertThat(state.response().text("$.resolution")).isEqualTo(resolution);
+        assertThat(state.response().text("$.winnerName")).isNotBlank();
+        assertThat(state.response().<Number>read("$.payoutAmount").intValue()).isEqualTo(amount);
+    }
+
     @Then("the contribution is in status {string} without inconsistencies")
     public void isValidatedWithoutInconsistencies(String status) {
         theContributionIsInStatus(status);
@@ -95,6 +142,18 @@ public class ContributionSteps {
     @Then("{string} appears as paid in the pot")
     public void appearsAsPaid(String name) {
         assertThat(statusInPot(name)).isEqualTo("VALIDATED");
+    }
+
+    @Then("{string} sees the contribution of the current period as {string}")
+    public void seesTheContributionAs(String name, String status) {
+        var mine = api.get("/api/v1/cycles/" + state.cycleId() + "/members/me/contributions", state.member(name));
+        assertThat(mine.status()).as(mine.body()).isEqualTo(200);
+        assertThat(mine.text("$.periods[0].status")).isEqualTo(status);
+    }
+
+    @Then("{string} owes the contribution of the current period")
+    public void owesTheContribution(String name) {
+        assertThat(statusInPot(name)).isIn("PENDING", "LATE");
     }
 
     @Then("{string} appears as covered in the pot")
@@ -148,7 +207,25 @@ public class ContributionSteps {
     @When("{string} confirms the delivery of the pot")
     @Given("{string} confirmed the delivery of the pot")
     public void confirmsTheDelivery(String organizer) {
-        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/payout", state.member(organizer), null));
+        var periodId = currentPeriodId();
+        state.keepResponse(api.post("/api/v1/periods/" + periodId + "/payout", state.member(organizer), null));
+        if (state.response().status() == 200) {
+            deliveredPeriodId = periodId;
+        }
+    }
+
+    @When("{string} attaches the proof of the delivery")
+    public void attachesTheProofOfTheDelivery(String name) {
+        var periodId = deliveredPeriodId != null ? deliveredPeriodId : currentPeriodId();
+        state.keepResponse(api.upload("/api/v1/periods/" + periodId + "/payout/proof", state.member(name),
+                new byte[]{(byte) 0x89, 'P', 'N', 'G'}, "image/png"));
+    }
+
+    @Then("{string} can see the proof of the delivery")
+    public void canSeeTheProofOfTheDelivery(String name) {
+        var proof = api.get("/api/v1/periods/" + deliveredPeriodId + "/payout/proof", state.member(name));
+        assertThat(proof.status()).as(proof.body()).isEqualTo(200);
+        assertThat(proof.text("$.url")).isNotBlank();
     }
 
     @Then("the period was delivered and turn {int} is open")

@@ -21,7 +21,7 @@ public final class NotificationResourceAssembler {
 
     public static ReminderPlanResource toResourceFromReminderPlan(ReminderPlan plan) {
         return new ReminderPlanResource(plan.getGroupId(), plan.getOffsetsInDays(), plan.getSendHour(),
-                plan.isEnabled(), plan.getUpdatedAt());
+                plan.isEnabled(), ReminderPlan.OVERDUE_DAYS, plan.getUpdatedAt());
     }
 
     public static NotificationResource toResourceFromNotification(Notification notification) {

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import pe.kerolabs.pozzo.contributions.infrastructure.persistence.jpa.entities.ContributionPersistenceEntity;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -19,4 +20,6 @@ public interface ContributionPersistenceRepository extends JpaRepository<Contrib
                                                                                                UUID membershipId);
 
     boolean existsByCycleIdAndReceiptOperationNumber(UUID cycleId, String receiptOperationNumber);
+
+    Optional<ContributionPersistenceEntity> findByVerificationToken(String verificationToken);
 }

@@ -3,13 +3,18 @@ package pe.kerolabs.pozzo.savingsgroups.application.commandservices;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ApplySwappedTurnsCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -102,4 +107,45 @@ public interface SavingsGroupCommandService {
      * @return the closed savings group aggregate, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(CloseGroupCommand command);
+
+    /**
+     * Links a new account to the members the organizers registered without the application with its number.
+     *
+     * @param command command containing the account and its verified number
+     * @return how many memberships were linked
+     */
+    Result<Integer, ApplicationError> handle(LinkManualMembersCommand command);
+
+    /**
+     * Updates the calendar of a started group after Contributions swapped two turns.
+     *
+     * @param command command with the group and the two members with their new turns
+     * @return the group with the new calendar, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(ApplySwappedTurnsCommand command);
+
+    /**
+     * Opens the next cycle of a group whose cycle was over: a new group with the same rules and members.
+     * Only the organizer.
+     *
+     * @param command command with the group, the organizer and the first contribution date of the new cycle
+     * @return the new group, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command);
+
+    /**
+     * Records that a member left a group in progress. Only the organizer.
+     *
+     * @param command command with the group, the organizer and the membership
+     * @return the group with the member dropped, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(RegisterDropoutCommand command);
+
+    /**
+     * Gives the seat and the turn of a member who dropped out to someone else. Only the organizer.
+     *
+     * @param command command with the group, the organizer, the dropped membership and the replacement
+     * @return the group with the replacement, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(ReplaceMemberCommand command);
 }

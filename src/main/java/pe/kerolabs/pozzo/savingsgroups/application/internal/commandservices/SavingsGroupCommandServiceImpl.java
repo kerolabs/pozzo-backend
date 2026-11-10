@@ -7,13 +7,18 @@ import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ApplySwappedTurnsCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
@@ -198,6 +203,68 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
         }
         group.get().close();
         return Result.success(savingsGroupRepository.save(group.get()));
+    }
+
+    @Override
+    public Result<Integer, ApplicationError> handle(LinkManualMembersCommand command) {
+        var now = clock.instant();
+        var linked = 0;
+        for (var group : savingsGroupRepository.findAllWithUnlinkedManualMember(command.phoneNumber())) {
+            if (group.linkManualMember(command.phoneNumber(), command.accountId(), now).isPresent()) {
+                savingsGroupRepository.save(group);
+                linked++;
+            }
+        }
+        return Result.success(linked);
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(ApplySwappedTurnsCommand command) {
+        var group = savingsGroupRepository.findById(command.groupId());
+        if (group.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("SavingsGroup", command.groupId().toString()));
+        }
+        group.get().applySwappedTurns(command.firstMembershipId(), command.firstTurn(), command.secondMembershipId(),
+                command.secondTurn());
+        return Result.success(savingsGroupRepository.save(group.get()));
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command) {
+        var dateError = checkFirstContributionDate(command.firstContributionDate());
+        if (dateError != null) {
+            return Result.failure(dateError);
+        }
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> savingsGroupRepository.save(
+                        group.openNewCycle(command.firstContributionDate(), clock.instant())));
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(RegisterDropoutCommand command) {
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.registerDropout(command.membershipId(), clock.instant());
+                    return savingsGroupRepository.save(group);
+                });
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(ReplaceMemberCommand command) {
+        var phone = command.phoneNumber() == null || command.phoneNumber().isBlank()
+                ? null
+                : "+51" + command.phoneNumber().replace(" ", "");
+        // Someone who already uses Pozzo with that number takes the seat with their account.
+        var accountId = phone == null ? null : externalIamService.fetchAccountIdByPhoneNumber(phone).orElse(null);
+        var displayName = accountId == null
+                ? command.displayName()
+                : externalIamService.fetchDisplayName(accountId).orElse(command.displayName());
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.replaceDroppedMember(command.droppedMembershipId(), accountId, displayName, phone,
+                            clock.instant());
+                    return savingsGroupRepository.save(group);
+                });
     }
 
     private void expireActiveInvitations(UUID groupId) {

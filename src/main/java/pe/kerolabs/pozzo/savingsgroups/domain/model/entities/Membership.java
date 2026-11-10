@@ -60,6 +60,23 @@ public class Membership {
         return membership;
     }
 
+    /**
+     * Creates the membership of someone who takes the seat of a member who left a started group. With an
+     * account, they use the application; without one, the organizer records their contributions.
+     */
+    public static Membership ofReplacement(@Nullable UUID memberId, String displayName, @Nullable String phone,
+                                           Instant now) {
+        var membership = memberId == null
+                ? ofManualMember(displayName, phone, now)
+                : ofAppMember(memberId, displayName, now);
+        membership.status = MembershipStatus.REPLACEMENT;
+        return membership;
+    }
+
+    public boolean isDropped() {
+        return status == MembershipStatus.DROPPED;
+    }
+
     public boolean isActive() {
         return status == MembershipStatus.ACTIVE || status == MembershipStatus.REPLACEMENT;
     }
@@ -87,6 +104,25 @@ public class Membership {
         this.displayName = requireName(displayName);
         this.status = MembershipStatus.ACTIVE;
         this.joinedAt = now;
+    }
+
+    /**
+     * Whether this is a member registered by the organizer with that number who has not linked an account yet.
+     */
+    public boolean isUnlinkedManualMemberWith(String phone) {
+        return kind == MembershipKind.MANUAL && memberId == null && phone.equals(this.phone);
+    }
+
+    /**
+     * Links the account of a member the organizer registered without the application, who signed up with the
+     * same number. The membership keeps its id, so its contributions and turn stay with the member.
+     */
+    public void linkAccount(UUID accountId) {
+        if (kind != MembershipKind.MANUAL || memberId != null) {
+            throw new IllegalStateException("Only a member registered without the application can link an account");
+        }
+        this.memberId = accountId;
+        this.kind = MembershipKind.APP;
     }
 
     public void markDropped() {

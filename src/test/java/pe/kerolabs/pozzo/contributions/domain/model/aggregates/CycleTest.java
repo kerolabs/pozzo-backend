@@ -3,6 +3,8 @@ package pe.kerolabs.pozzo.contributions.domain.model.aggregates;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
@@ -68,5 +70,82 @@ class CycleTest {
         assertThatThrownBy(cycle::advanceToNextTurn)
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("NO_REMAINING_TURNS");
+    }
+
+    @Test
+    void aMemberWithoutTheApplicationGetsTheTurnForTheAccountTheySignedUpWith() {
+        var marta = UUID.randomUUID();
+        var cycle = Cycle.start(UUID.randomUUID(), "Junta de la familia Weber", organizer, PeriodTest.monthlyRules(),
+                List.of(new CycleTurn(1, UUID.randomUUID(), organizer, "Anna Weber"),
+                        new CycleTurn(2, UUID.randomUUID(), null, "Marta Quispe")), NOW);
+        var membership = cycle.turn(2).membershipId();
+        cycle.clearDomainEvents();
+
+        assertThat(cycle.linkAccount(membership, marta, NOW)).isTrue();
+
+        assertThat(cycle.participantOf(marta)).hasValueSatisfying(turn -> assertThat(turn.turnNumber()).isEqualTo(2));
+        assertThat(cycle.domainEvents()).singleElement().isInstanceOf(CycleMemberLinkedEvent.class);
+        assertThat(cycle.linkAccount(membership, marta, NOW)).isFalse();
+        assertThat(cycle.linkAccount(UUID.randomUUID(), marta, NOW)).isFalse();
+    }
+
+    @Test
+    void theOrganizerSwapsTwoTurnsWhosePeriodsHaveNotStarted() {
+        var cycle = Cycle.start(UUID.randomUUID(), "Junta de la familia Weber", organizer, PeriodTest.monthlyRules(),
+                List.of(new CycleTurn(1, UUID.randomUUID(), organizer, "Anna Weber"),
+                        new CycleTurn(2, UUID.randomUUID(), UUID.randomUUID(), "Sofia Gonzales"),
+                        new CycleTurn(3, UUID.randomUUID(), UUID.randomUUID(), "Jorge Ramos")), NOW);
+        var sofia = cycle.turn(2).membershipId();
+        var jorge = cycle.turn(3).membershipId();
+        cycle.clearDomainEvents();
+
+        cycle.swapTurns(sofia, jorge, NOW);
+
+        assertThat(cycle.turn(2).membershipId()).isEqualTo(jorge);
+        assertThat(cycle.turn(3).membershipId()).isEqualTo(sofia);
+        assertThat(cycle.domainEvents()).singleElement().isInstanceOf(TurnsSwappedEvent.class);
+    }
+
+    @Test
+    void aTurnWhosePeriodStartedOrTheSameMemberCannotBeSwapped() {
+        var cycle = twoTurnCycle();
+        var first = cycle.turn(1).membershipId();
+        var second = cycle.turn(2).membershipId();
+
+        assertThatThrownBy(() -> cycle.swapTurns(first, second, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("TURN_ALREADY_STARTED");
+        assertThatThrownBy(() -> cycle.swapTurns(second, second, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("SAME_MEMBER");
+    }
+
+    @Test
+    void theReplacementTakesATurnThatWasNotCollected() {
+        var cycle = twoTurnCycle();
+        var first = cycle.turn(1).membershipId();
+        var second = cycle.turn(2).membershipId();
+        var rosa = UUID.randomUUID();
+
+        assertThatThrownBy(() -> cycle.replaceMember(first, UUID.randomUUID(), null, "Rosa Medina", true))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("TURN_ALREADY_COLLECTED");
+
+        var turn = cycle.replaceMember(second, rosa, null, "Rosa Medina", false);
+
+        assertThat(turn.turnNumber()).isEqualTo(2);
+        assertThat(cycle.turn(2).membershipId()).isEqualTo(rosa);
+    }
+
+    @Test
+    void theWinnerOfAnAuctionTakesTheTurnInProgressFromItsProvisionalHolder() {
+        var cycle = twoTurnCycle();
+        var first = cycle.turn(1).membershipId();
+        var second = cycle.turn(2).membershipId();
+
+        cycle.giveCurrentTurnTo(second);
+
+        assertThat(cycle.turn(1).membershipId()).isEqualTo(second);
+        assertThat(cycle.turn(2).membershipId()).isEqualTo(first);
     }
 }

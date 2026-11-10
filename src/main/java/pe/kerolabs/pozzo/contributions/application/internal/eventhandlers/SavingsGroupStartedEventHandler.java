@@ -5,7 +5,10 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.contributions.application.commandservices.CycleCommandService;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionFallback;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionSettings;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Periodicity;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupStartedIntegrationEvent;
 
@@ -32,7 +35,10 @@ public class SavingsGroupStartedEventHandler {
         var command = new StartCycleCommand(event.groupId(), event.groupName(), event.organizerAccountId(),
                 event.organizerName(), event.contributionAmount(), event.currency(),
                 Periodicity.valueOf(event.periodicity()), event.firstContributionDate(), event.destinationMethod(),
-                event.destinationPhone(), turns);
+                event.destinationPhone(), turns, event.auction() == null ? null : new AuctionSettings(
+                        event.auction().closesDaysBeforeCutoff(),
+                        Money.of(event.auction().minimumBid(), event.currency()),
+                        AuctionFallback.valueOf(event.auction().fallback())));
         var result = cycleCommandService.handle(command);
         if (result.isFailure()) {
             throw new IllegalStateException("The cycle of group %s could not start".formatted(event.groupId()));

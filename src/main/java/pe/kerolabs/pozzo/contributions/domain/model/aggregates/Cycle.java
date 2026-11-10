@@ -3,7 +3,11 @@ package pe.kerolabs.pozzo.contributions.domain.model.aggregates;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberDroppedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleStartedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionSettings;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
@@ -38,6 +42,7 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
     private CycleStatus status;
     private Instant startedAt;
     private @Nullable Instant closedAt;
+    private @Nullable AuctionSettings auctionSettings;
 
     public Cycle() {
     }
@@ -47,6 +52,15 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
      */
     public static Cycle start(UUID groupId, String groupName, UUID organizerAccountId, CycleRules rules,
                               List<CycleTurn> turns, Instant now) {
+        return start(groupId, groupName, organizerAccountId, rules, turns, null, now);
+    }
+
+    /**
+     * Starts the cycle of a group. With auction settings, the order of the turns is provisional: each period
+     * auctions its turn among the members who have not collected.
+     */
+    public static Cycle start(UUID groupId, String groupName, UUID organizerAccountId, CycleRules rules,
+                              List<CycleTurn> turns, @Nullable AuctionSettings auctionSettings, Instant now) {
         if (turns.size() < 2) {
             throw new IllegalArgumentException("A cycle needs at least two members");
         }
@@ -60,6 +74,7 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         cycle.currentTurn = 1;
         cycle.status = CycleStatus.ACTIVE;
         cycle.startedAt = now;
+        cycle.auctionSettings = auctionSettings;
         cycle.registerDomainEvent(new CycleStartedEvent(cycle.id, groupId, now));
         return cycle;
     }
@@ -122,6 +137,126 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         this.status = CycleStatus.CLOSED;
         this.closedAt = now;
         registerDomainEvent(new CycleClosedEvent(id, groupId, now));
+    }
+
+    /**
+     * Gives the turn of a member who took part without the application to the account they signed up with, so
+     * from now on they register and see their own contributions.
+     *
+     * @return false when the membership has no turn in this cycle or already has that account
+     */
+    public boolean linkAccount(UUID membershipId, UUID accountId, Instant now) {
+        for (var index = 0; index < turns.size(); index++) {
+            var turn = turns.get(index);
+            if (!turn.membershipId().equals(membershipId)) {
+                continue;
+            }
+            if (turn.belongsTo(accountId)) {
+                return false;
+            }
+            turns.set(index, new CycleTurn(turn.turnNumber(), membershipId, accountId, turn.displayName()));
+            registerDomainEvent(new CycleMemberLinkedEvent(id, groupId, membershipId, accountId, now));
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isClosed() {
+        return status == CycleStatus.CLOSED;
+    }
+
+    /**
+     * Swaps the turns of two members whose periods have not started yet. The organizer does it when two
+     * members agree to collect in each other's turn.
+     */
+    public void swapTurns(UUID firstMembershipId, UUID secondMembershipId, Instant now) {
+        if (status != CycleStatus.ACTIVE) {
+            throw new BusinessRuleViolationException("CYCLE_CLOSED", "The cycle is over");
+        }
+        if (firstMembershipId.equals(secondMembershipId)) {
+            throw new BusinessRuleViolationException("SAME_MEMBER", "Choose two different members");
+        }
+        var first = findParticipant(firstMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        var second = findParticipant(secondMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        if (first.turnNumber() <= currentTurn || second.turnNumber() <= currentTurn) {
+            throw new BusinessRuleViolationException("TURN_ALREADY_STARTED",
+                    "Only turns whose period has not started can be swapped");
+        }
+        turns.set(turns.indexOf(first), new CycleTurn(second.turnNumber(), first.membershipId(), first.accountId(),
+                first.displayName()));
+        turns.set(turns.indexOf(second), new CycleTurn(first.turnNumber(), second.membershipId(),
+                second.accountId(), second.displayName()));
+        turns.sort(Comparator.comparingInt(CycleTurn::turnNumber));
+        registerDomainEvent(new TurnsSwappedEvent(id, groupId, firstMembershipId, second.turnNumber(),
+                secondMembershipId, first.turnNumber(), now));
+    }
+
+    /**
+     * Records that a member of the cycle dropped out. Their turn stays until someone replaces them.
+     */
+    public void registerDropout(UUID membershipId, Instant now) {
+        var turn = findParticipant(membershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        registerDomainEvent(new CycleMemberDroppedEvent(id, groupId, membershipId, turn.turnNumber(), now));
+    }
+
+    /**
+     * Gives the turn of a member who dropped out to their replacement, while that turn has not been collected.
+     *
+     * @param currentPotDelivered whether the pot of the turn in progress was already delivered
+     * @return the turn the replacement takes
+     */
+    public CycleTurn replaceMember(UUID droppedMembershipId, UUID replacementMembershipId, @Nullable UUID accountId,
+                                   String displayName, boolean currentPotDelivered) {
+        var dropped = findParticipant(droppedMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        if (dropped.turnNumber() < currentTurn || (dropped.turnNumber() == currentTurn && currentPotDelivered)) {
+            throw new BusinessRuleViolationException("TURN_ALREADY_COLLECTED",
+                    "The member who dropped out already collected the pot of their turn");
+        }
+        var replacement = new CycleTurn(dropped.turnNumber(), replacementMembershipId, accountId, displayName);
+        turns.set(turns.indexOf(dropped), replacement);
+        return replacement;
+    }
+
+    public boolean isAuction() {
+        return auctionSettings != null;
+    }
+
+    /**
+     * The members who have not collected yet: the holder of the turn in progress and of every later turn.
+     */
+    public List<CycleTurn> stillToCollect() {
+        return turns.stream().filter(turn -> turn.turnNumber() >= currentTurn).toList();
+    }
+
+    /**
+     * Gives the turn in progress to the winner of its auction, who takes it from its provisional holder. Both
+     * have not collected yet, so they swap their turns.
+     */
+    public void giveCurrentTurnTo(UUID winnerMembershipId) {
+        var holder = turn(currentTurn);
+        if (holder.membershipId().equals(winnerMembershipId)) {
+            return;
+        }
+        var winner = findParticipant(winnerMembershipId)
+                .filter(turn -> turn.turnNumber() > currentTurn)
+                .orElseThrow(() -> new BusinessRuleViolationException("ALREADY_COLLECTED",
+                        "Only a member who has not collected can win the turn"));
+        turns.set(turns.indexOf(holder), new CycleTurn(winner.turnNumber(), holder.membershipId(), holder.accountId(),
+                holder.displayName()));
+        turns.set(turns.indexOf(winner), new CycleTurn(currentTurn, winner.membershipId(), winner.accountId(),
+                winner.displayName()));
+        turns.sort(Comparator.comparingInt(CycleTurn::turnNumber));
+    }
+
+    /**
+     * Restores the auction settings from persistence.
+     */
+    public void restoreAuctionSettings(@Nullable AuctionSettings auctionSettings) {
+        this.auctionSettings = auctionSettings;
     }
 
     public List<CycleTurn> getTurns() {

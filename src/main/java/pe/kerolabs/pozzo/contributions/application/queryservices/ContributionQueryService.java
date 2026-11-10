@@ -1,12 +1,15 @@
 package pe.kerolabs.pozzo.contributions.application.queryservices;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetAuctionQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
 
@@ -48,4 +51,22 @@ public interface ContributionQueryService {
      * organizer; empty when the requester may not see it or there is no image.
      */
     Optional<ReceiptImageLink> handle(GetReceiptImageQuery query);
+
+    /**
+     * A temporary link to the image of the transfer with which the pot of a period was delivered, for any
+     * member of the cycle; empty when the requester is not a member or there is no image.
+     */
+    Optional<ReceiptImageLink> handle(GetPayoutProofQuery query);
+
+    /**
+     * The contribution a public verification link points to, for anyone with the link; empty when the token
+     * points to nothing or the contribution no longer counts for the pot.
+     */
+    Optional<VerifiedContributionView> handle(GetVerifiedContributionQuery query);
+
+    /**
+     * The auction of a period, for a member of the cycle; empty when the period has no auction or the requester
+     * is not a member.
+     */
+    Optional<AuctionView> handle(GetAuctionQuery query);
 }

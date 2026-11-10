@@ -27,16 +27,22 @@ import pe.kerolabs.pozzo.contributions.application.queryservices.ContributionQue
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
+import pe.kerolabs.pozzo.contributions.infrastructure.links.VerifiedContributionLinkBuilder;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ContributionResource;
+import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ContributionShareLinkResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ReceiptImageResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterCashContributionResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterContributionResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.RegisterCoverageResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.ReviewContributionResource;
+import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.VerifiedContributionResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.ContributionCommandFromResourceAssembler;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.ContributionResourceFromEntityAssembler;
+import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.VerifiedContributionResourceFromViewAssembler;
 import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
@@ -57,11 +63,14 @@ public class ContributionsController {
 
     private final ContributionCommandService contributionCommandService;
     private final ContributionQueryService contributionQueryService;
+    private final VerifiedContributionLinkBuilder linkBuilder;
 
     public ContributionsController(ContributionCommandService contributionCommandService,
-                                   ContributionQueryService contributionQueryService) {
+                                   ContributionQueryService contributionQueryService,
+                                   VerifiedContributionLinkBuilder linkBuilder) {
         this.contributionCommandService = contributionCommandService;
         this.contributionQueryService = contributionQueryService;
+        this.linkBuilder = linkBuilder;
     }
 
     /**
@@ -242,6 +251,48 @@ public class ContributionsController {
                 .<ResponseEntity<?>>map(link -> ResponseEntity.ok(new ReceiptImageResource(link.url(), link.expiresAt())))
                 .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
                         ApplicationError.notFound("ReceiptImage", contributionId.toString())));
+    }
+
+    @PostMapping("/contributions/{contributionId}/share")
+    @Operation(summary = "Share a contribution",
+            description = "Gives a public link that proves the contribution was registered. It is the same link "
+                    + "every time and does not expire. Only for a contribution that counts for the pot, and only "
+                    + "the member it counts for or the organizer.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Link of the contribution",
+                    content = @Content(schema = @Schema(implementation = ContributionShareLinkResource.class))),
+            @ApiResponse(responseCode = "404", description = "The contribution does not exist or the requester may not "
+                    + "share it",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The contribution does not count for the pot",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> shareContribution(@AuthenticationPrincipal AuthenticatedMember member,
+                                               @PathVariable UUID contributionId) {
+        var result = contributionCommandService.handle(new ShareContributionCommand(contributionId,
+                member.accountId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> {
+            var token = contribution.getVerificationToken();
+            return new ContributionShareLinkResource(token.value(), linkBuilder.linkFor(token));
+        }, HttpStatus.OK);
+    }
+
+    @GetMapping("/contributions/shared/{token}")
+    @Operation(summary = "Verify a shared contribution",
+            description = "Public: shows the group, the member, the period and the amount of a contribution shared "
+                    + "with a link, without the receipt image.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Contribution registered in Pozzo",
+                    content = @Content(schema = @Schema(implementation = VerifiedContributionResource.class))),
+            @ApiResponse(responseCode = "404", description = "The link points to nothing",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getSharedContribution(@PathVariable String token) {
+        return contributionQueryService.handle(new GetVerifiedContributionQuery(token))
+                .<ResponseEntity<?>>map(view -> ResponseEntity.ok(
+                        VerifiedContributionResourceFromViewAssembler.toResourceFromView(view)))
+                .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.notFound("SharedContribution", token)));
     }
 
     /**

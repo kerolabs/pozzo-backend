@@ -4,6 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import tools.jackson.databind.json.JsonMapper;
@@ -64,7 +65,13 @@ public class PozzoApi {
      * arrived by SMS and completes the registration.
      */
     public Member signUp(String name) {
-        var phone = newPhoneNumber();
+        return signUp(name, newPhoneNumber());
+    }
+
+    /**
+     * Creates an account with a given number, like someone the organizer already registered with it.
+     */
+    public Member signUp(String name, String phone) {
         send(HttpMethod.POST, "/api/v1/auth/codes", null, Map.of("phoneNumber", phone));
         var verification = send(HttpMethod.POST, "/api/v1/auth/codes/verify", null,
                 Map.of("phoneNumber", phone, "code", lastCodeSentTo(phone), "deviceLabel", "Pixel 8"));
@@ -145,6 +152,22 @@ public class PozzoApi {
 
     public Response delete(String path, @Nullable Member member) {
         return call(HttpMethod.DELETE, path, member, null);
+    }
+
+    /**
+     * Sends a file the way the application uploads images: a multipart PUT with the file in the part "image".
+     */
+    public Response upload(String path, Member member, byte[] content, String contentType) {
+        try {
+            var request = MockMvcRequestBuilders.multipart(HttpMethod.PUT, path)
+                    .file(new MockMultipartFile("image", "image", contentType, content))
+                    .header("Authorization", "Bearer " + member.token())
+                    .accept(MediaType.APPLICATION_JSON);
+            var response = mockMvc.perform(request).andReturn().getResponse();
+            return new Response(response.getStatus(), response.getContentAsString(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new IllegalStateException("The upload to " + path + " failed", e);
+        }
     }
 
     private Response call(HttpMethod method, String path, @Nullable Member member, @Nullable Object body) {

@@ -15,6 +15,7 @@ import lombok.Setter;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.PeriodStatus;
 import pe.kerolabs.pozzo.shared.infrastructure.persistence.jpa.entities.AbstractPersistenceEntity;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -57,6 +58,12 @@ public class PeriodPersistenceEntity extends AbstractPersistenceEntity {
 
     @Column(name = "delivered_by")
     private UUID deliveredBy;
+
+    @Column(name = "payout_proof_path", length = 200)
+    private String payoutProofPath;
+
+    @Column(name = "discount_amount", precision = 12, scale = 2)
+    private BigDecimal discountAmount;
 
     @OneToMany(mappedBy = "period", cascade = CascadeType.ALL)
     private List<ExpectedContributionPersistenceEntity> expected = new ArrayList<>();

@@ -32,6 +32,16 @@ public class ExpectedContribution {
         return expected;
     }
 
+    /**
+     * Moves what is still owed to the member who replaced the one who dropped out.
+     */
+    public void transferTo(UUID membershipId) {
+        if (!isPending()) {
+            throw new IllegalStateException("Only a pending contribution moves to a replacement");
+        }
+        this.membershipId = membershipId;
+    }
+
     public boolean isPending() {
         return status == ExpectedStatus.PENDING;
     }

@@ -34,6 +34,45 @@ public final class NotificationTexts {
                 .formatted(money(amount), groupName, CUTOFF_FORMAT.format(cutoffDate)), groupLink(groupId));
     }
 
+    public static NotificationContent overdueReminder(int daysLate, String groupName, BigDecimal amount,
+                                                      LocalDate cutoffDate, UUID groupId) {
+        var lateness = daysLate == 1 ? "1 día" : "%d días".formatted(daysLate);
+        return content("Tu aporte está atrasado", "Aporta %s a %s. La fecha límite fue el %s y llevas %s de atraso."
+                .formatted(money(amount), groupName, CUTOFF_FORMAT.format(cutoffDate), lateness), groupLink(groupId));
+    }
+
+    public static NotificationContent turnSwapped(String groupName, int turnNumber, UUID groupId) {
+        return content("Cambió tu turno", "En %s ahora cobras en el turno %d."
+                .formatted(groupName, turnNumber), groupLink(groupId));
+    }
+
+    public static NotificationContent newCycleOpened(String groupName, UUID groupId) {
+        return content("Nuevo ciclo", "%s abrió un nuevo ciclo con las mismas reglas e integrantes."
+                .formatted(groupName), groupLink(groupId));
+    }
+
+    public static NotificationContent memberDropped(String memberName, String groupName, UUID groupId) {
+        return content("Un integrante dejó la junta", "%s dejó %s. La cabeza puede asignar a alguien en su lugar."
+                .formatted(memberName, groupName), groupLink(groupId));
+    }
+
+    public static NotificationContent joinedAsReplacement(String groupName, int turnNumber, UUID groupId) {
+        return content("Te sumaron a una junta", "Ocupas el lugar de un integrante de %s y cobras en el turno %d."
+                .formatted(groupName, turnNumber), groupLink(groupId));
+    }
+
+    public static NotificationContent auctionOpened(String groupName, int turnNumber, LocalDate closesOn,
+                                                    UUID groupId) {
+        return content("Subasta abierta", "Ya puedes ofertar por el turno %d de %s hasta el %s."
+                .formatted(turnNumber, groupName, CUTOFF_FORMAT.format(closesOn)), groupLink(groupId));
+    }
+
+    public static NotificationContent auctionClosed(String groupName, int turnNumber, String winnerName,
+                                                    BigDecimal payoutAmount, UUID groupId) {
+        return content("Subasta cerrada", "%s cobra el turno %d de %s y recibe %s."
+                .formatted(winnerName, turnNumber, groupName, money(payoutAmount)), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));

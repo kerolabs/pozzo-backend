@@ -8,13 +8,19 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberDroppedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberRemovedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnSlot;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
@@ -51,6 +57,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     private @Nullable TurnMethod turnMethod;
     private @Nullable String drawSeed;
     private @Nullable Instant turnsAssignedAt;
+    private @Nullable AuctionRules auctionRules;
     private GroupStatus status;
     private Instant createdAt;
     private @Nullable Instant startedAt;
@@ -233,6 +240,28 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     /**
      * Adds a member who does not use the application; the organizer records that member's contributions.
      */
+    /**
+     * Links a new account to the member the organizer registered without the application with the same number,
+     * so the member keeps the seat, the turn and the contributions recorded so far. Nothing changes when no
+     * such member is waiting or when the account already has a membership in the group.
+     *
+     * @param phone the verified number of the account in E.164 format
+     * @return the linked membership, if there was one
+     */
+    public Optional<Membership> linkManualMember(String phone, UUID accountId, Instant now) {
+        if (memberships.stream().anyMatch(membership -> membership.belongsTo(accountId))) {
+            return Optional.empty();
+        }
+        var manual = memberships.stream()
+                .filter(membership -> membership.isActive() && membership.isUnlinkedManualMemberWith(phone))
+                .findFirst();
+        manual.ifPresent(membership -> {
+            membership.linkAccount(accountId);
+            registerDomainEvent(new MemberLinkedEvent(id, membership.getId(), accountId, now));
+        });
+        return manual;
+    }
+
     public Membership addManualMember(String displayName, @Nullable String phone, Instant now) {
         requireNotStarted();
         requireFreeSeat();
@@ -280,6 +309,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         requireValidOrder(slots);
         this.turns = new ArrayList<>(slots);
         this.turnMethod = method;
+        this.auctionRules = null;
         this.drawSeed = seed;
         this.turnsAssignedAt = now;
         registerDomainEvent(new TurnsAssignedEvent(id, method, now));
@@ -328,6 +358,110 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
                     "Only a group whose cycle has started can be closed");
         }
         this.status = GroupStatus.CLOSED;
+    }
+
+    /**
+     * Gives two members the turns Contributions swapped after the group started, so the calendar of the group
+     * shows who collects in each turn.
+     */
+    public void applySwappedTurns(UUID firstMembershipId, int firstTurn, UUID secondMembershipId, int secondTurn) {
+        for (var index = 0; index < turns.size(); index++) {
+            var turn = turns.get(index);
+            if (turn.membershipId().equals(firstMembershipId)) {
+                turns.set(index, new TurnSlot(firstTurn, firstMembershipId, turn.assignedBy()));
+            } else if (turn.membershipId().equals(secondMembershipId)) {
+                turns.set(index, new TurnSlot(secondTurn, secondMembershipId, turn.assignedBy()));
+            }
+        }
+    }
+
+    /**
+     * Records that a member left the group after it started. The member keeps the contributions and the pot
+     * received so far; their turn waits for a replacement.
+     */
+    public Membership registerDropout(UUID membershipId, Instant now) {
+        if (status != GroupStatus.STARTED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_STARTED",
+                    "Only a member of a group in progress can drop out; before it starts, remove the member");
+        }
+        var membership = findMembership(membershipId).filter(Membership::isActive)
+                .orElseThrow(() -> new BusinessRuleViolationException("MEMBER_NOT_ACTIVE",
+                        "The member is not active in the group"));
+        if (membership.belongsTo(organizerId)) {
+            throw new BusinessRuleViolationException("ORGANIZER_CANNOT_DROP_OUT",
+                    "The organizer cannot drop out of their own group");
+        }
+        membership.markDropped();
+        registerDomainEvent(new MemberDroppedEvent(id, membershipId, membership.getMemberId(),
+                membership.getDisplayName(), now));
+        return membership;
+    }
+
+    /**
+     * Gives the seat and the turn of a member who dropped out to someone else.
+     *
+     * @param accountId the account of the replacement, or null when they do not use the application
+     * @return the membership of the replacement
+     */
+    public Membership replaceDroppedMember(UUID droppedMembershipId, @Nullable UUID accountId, String displayName,
+                                           @Nullable String phone, Instant now) {
+        if (status != GroupStatus.STARTED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_STARTED",
+                    "Only a member of a group in progress can be replaced");
+        }
+        var dropped = findMembership(droppedMembershipId).filter(Membership::isDropped)
+                .orElseThrow(() -> new BusinessRuleViolationException("MEMBER_NOT_DROPPED",
+                        "Only a member who dropped out can be replaced"));
+        var turnIndex = -1;
+        for (var index = 0; index < turns.size(); index++) {
+            if (turns.get(index).membershipId().equals(dropped.getId())) {
+                turnIndex = index;
+            }
+        }
+        if (turnIndex < 0) {
+            throw new BusinessRuleViolationException("MEMBER_ALREADY_REPLACED", "The member was already replaced");
+        }
+        if (accountId != null && memberships.stream().anyMatch(membership -> membership.belongsTo(accountId))) {
+            throw new BusinessRuleViolationException("ALREADY_A_MEMBER", "The member already belongs to the group");
+        }
+        var replacement = Membership.ofReplacement(accountId, displayName, phone, now);
+        memberships.add(replacement);
+        var turn = turns.get(turnIndex);
+        turns.set(turnIndex, new TurnSlot(turn.turnNumber(), replacement.getId(), turn.assignedBy()));
+        registerDomainEvent(new MemberReplacedEvent(id, droppedMembershipId, replacement.getId(), accountId,
+                replacement.getDisplayName(), turn.turnNumber(), now));
+        return replacement;
+    }
+
+    /**
+     * Decides that each turn is auctioned when its period opens. The members get a provisional order, only so
+     * the cycle has a turn per member: each auction gives the turn in progress to its winner.
+     */
+    public void assignTurnsByAuction(AuctionRules rules, Instant now) {
+        requireNotStarted();
+        if (!isFull()) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_FULL",
+                    "Every seat must be taken before assigning the turns");
+        }
+        var members = activeMemberships();
+        var slots = new ArrayList<TurnSlot>();
+        for (var index = 0; index < members.size(); index++) {
+            slots.add(new TurnSlot(index + 1, members.get(index).getId(), TurnMethod.AUCTION));
+        }
+        this.turns = slots;
+        this.turnMethod = TurnMethod.AUCTION;
+        this.drawSeed = null;
+        this.turnsAssignedAt = now;
+        this.auctionRules = rules;
+        registerDomainEvent(new TurnsAssignedEvent(id, TurnMethod.AUCTION, now));
+        refreshReadiness();
+    }
+
+    /**
+     * Restores the auction rules from persistence.
+     */
+    public void restoreAuctionRules(@Nullable AuctionRules auctionRules) {
+        this.auctionRules = auctionRules;
     }
 
     /**
@@ -410,6 +544,32 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         turnMethod = null;
         drawSeed = null;
         turnsAssignedAt = null;
+    }
+
+    /**
+     * Opens the next cycle of a group whose cycle is over: a new group, still to start, with the same name,
+     * rules, destination and active members, so the organizer only reviews it, assigns the turns and starts it.
+     *
+     * @param firstContributionDate the cutoff of the first period of the new cycle
+     * @return the new group
+     */
+    public SavingsGroup openNewCycle(LocalDate firstContributionDate, Instant now) {
+        if (status != GroupStatus.CLOSED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_CLOSED",
+                    "A new cycle can only be opened once the group completed its cycle");
+        }
+        var organizerName = membershipOf(organizerId).map(Membership::getDisplayName).orElse(name);
+        var nextRules = new GroupRules(rules.contribution(), rules.periodicity(), rules.seats(), firstContributionDate,
+                rules.destination());
+        var next = create(organizerId, organizerName, name, nextRules, now);
+        activeMemberships().stream()
+                .filter(membership -> !membership.belongsTo(organizerId))
+                .forEach(membership -> next.memberships.add(membership.getKind() == MembershipKind.APP
+                        ? Membership.ofAppMember(membership.getMemberId(), membership.getDisplayName(), now)
+                        : Membership.ofManualMember(membership.getDisplayName(), membership.getPhone(), now)));
+        next.refreshReadiness();
+        next.registerDomainEvent(new NewCycleOpenedEvent(next.id, id, next.name, next.otherMemberAccountIds(), now));
+        return next;
     }
 
     private void refreshReadiness() {
