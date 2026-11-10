@@ -24,6 +24,17 @@ Feature: TS07 Reminders and notifications service
     Then the service responds 200 OK
     And the reminders are sent 3, 1 and 0 days before the cutoff at 9:00
 
+  Scenario: Daily reminder while a contribution is late
+    Given "Anna Weber" started a group with "Sofia Gonzales"
+    When 2 days pass after the cutoff and the due reminders go out
+    Then "Sofia Gonzales" has the notice "Tu aporte está atrasado"
+
+  Scenario: No daily reminder once the contribution is settled
+    Given "Anna Weber" started a group with "Sofia Gonzales" that sends the contributions to Yape
+    And "Sofia Gonzales" registers a receipt of S/ 200 paid to "Anna Weber" with the operation "04581274"
+    When 2 days pass after the cutoff and the due reminders go out
+    Then "Sofia Gonzales" does not have the notice "Tu aporte está atrasado"
+
   Scenario Outline: Notices by event
     Given "Anna Weber" started a group with "Sofia Gonzales" that sends the contributions to Yape
     When <event>
