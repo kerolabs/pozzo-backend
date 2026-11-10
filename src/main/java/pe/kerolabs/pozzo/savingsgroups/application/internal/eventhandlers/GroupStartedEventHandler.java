@@ -47,6 +47,10 @@ public class GroupStartedEventHandler {
                 rules.destination().method().name(),
                 rules.destination().phoneNumber(),
                 turns,
+                group.getAuctionRules() == null ? null : new SavingsGroupStartedIntegrationEvent.Auction(
+                        group.getAuctionRules().closesDaysBeforeCutoff(),
+                        group.getAuctionRules().minimumBid().amount(),
+                        group.getAuctionRules().fallback().name()),
                 event.occurredAt()));
     }
 }

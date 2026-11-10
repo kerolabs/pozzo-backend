@@ -35,6 +35,8 @@ public record PeriodStatusResource(
         @Schema(description = "When the pot was delivered", nullable = true) Instant deliveredAt,
         @Schema(description = "Whether the organizer attached the image of the transfer of the pot", example = "false")
         boolean hasPayoutProof,
+        @Schema(description = "What the member who collects receives: the pot less the discount of an auction",
+                example = "550.00") BigDecimal payoutAmount,
         @Schema(description = "Every member with the state of their contribution") List<MemberStatus> members) {
 
     /**

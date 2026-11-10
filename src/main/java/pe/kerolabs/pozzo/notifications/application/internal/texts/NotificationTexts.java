@@ -61,6 +61,18 @@ public final class NotificationTexts {
                 .formatted(groupName, turnNumber), groupLink(groupId));
     }
 
+    public static NotificationContent auctionOpened(String groupName, int turnNumber, LocalDate closesOn,
+                                                    UUID groupId) {
+        return content("Subasta abierta", "Ya puedes ofertar por el turno %d de %s hasta el %s."
+                .formatted(turnNumber, groupName, CUTOFF_FORMAT.format(closesOn)), groupLink(groupId));
+    }
+
+    public static NotificationContent auctionClosed(String groupName, int turnNumber, String winnerName,
+                                                    BigDecimal payoutAmount, UUID groupId) {
+        return content("Subasta cerrada", "%s cobra el turno %d de %s y recibe %s."
+                .formatted(winnerName, turnNumber, groupName, money(payoutAmount)), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));

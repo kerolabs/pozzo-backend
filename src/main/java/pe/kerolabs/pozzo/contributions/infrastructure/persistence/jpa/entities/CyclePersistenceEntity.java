@@ -12,6 +12,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionFallback;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Periodicity;
 import pe.kerolabs.pozzo.contributions.infrastructure.persistence.jpa.embeddables.CycleTurnEmbeddable;
@@ -84,6 +85,16 @@ public class CyclePersistenceEntity extends AbstractPersistenceEntity {
 
     @Column(name = "closed_at")
     private Instant closedAt;
+
+    @Column(name = "auction_closes_days_before")
+    private Integer auctionClosesDaysBefore;
+
+    @Column(name = "auction_minimum_bid", precision = 12, scale = 2)
+    private BigDecimal auctionMinimumBid;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auction_fallback", length = 10)
+    private AuctionFallback auctionFallback;
 
     @ElementCollection
     @CollectionTable(name = "cycle_turns", schema = "contributions", joinColumns = @JoinColumn(name = "cycle_id"))

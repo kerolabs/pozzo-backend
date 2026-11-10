@@ -83,7 +83,7 @@ public class PeriodsController {
                 delivery -> new PotDeliveryResource(
                         delivery.deliveredPeriod().getId(),
                         delivery.deliveredPeriod().getTurnNumber(),
-                        delivery.deliveredPeriod().potAmount().amount(),
+                        delivery.deliveredPeriod().payoutAmount().amount(),
                         delivery.cycle().getStatus(),
                         delivery.nextPeriod() == null ? null : delivery.nextPeriod().getId(),
                         delivery.nextPeriod() == null ? null : delivery.nextPeriod().getTurnNumber()),

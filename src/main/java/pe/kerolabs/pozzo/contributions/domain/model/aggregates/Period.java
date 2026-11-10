@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -41,6 +42,7 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     private @Nullable Instant deliveredAt;
     private @Nullable UUID deliveredBy;
     private @Nullable String payoutProofPath;
+    private @Nullable Money discount;
 
     public Period() {
     }
@@ -49,6 +51,15 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
      * Opens a turn of the cycle: every member owes the contribution of the rules.
      */
     public static Period open(Cycle cycle, int turnNumber, Instant now) {
+        return open(cycle, turnNumber, Map.of(), now);
+    }
+
+    /**
+     * Opens a period where some members owe less: the credit each one earned from the discount of an auction.
+     *
+     * @param credits the credit of each membership that has one
+     */
+    public static Period open(Cycle cycle, int turnNumber, Map<UUID, Money> credits, Instant now) {
         var rules = cycle.getRules();
         var period = new Period();
         period.id = UUID.randomUUID();
@@ -57,8 +68,12 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
         period.opensAt = rules.opensAtOfTurn(turnNumber);
         period.cutoffDate = rules.cutoffDateOfTurn(turnNumber);
         period.payoutMembershipId = cycle.turn(turnNumber).membershipId();
-        cycle.getTurns().forEach(turn ->
-                period.expected.add(ExpectedContribution.pendingFor(turn.membershipId(), rules.contribution())));
+        cycle.getTurns().forEach(turn -> {
+            var credit = credits.get(turn.membershipId());
+            var owed = credit == null ? rules.contribution() : rules.contribution().minus(credit);
+            period.expected.add(ExpectedContribution.pendingFor(turn.membershipId(),
+                    owed.amount().signum() < 0 ? Money.zero(owed.currency()) : owed));
+        });
         period.status = PeriodStatus.OPEN;
         period.registerDomainEvent(new PeriodOpenedEvent(period.id, cycle.getId(), cycle.getGroupId(), turnNumber,
                 period.payoutMembershipId, period.cutoffDate, now));
@@ -177,6 +192,31 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
         if (payoutMembershipId.equals(droppedMembershipId)) {
             payoutMembershipId = replacementMembershipId;
         }
+    }
+
+    /**
+     * Restores the aggregate from persistence.
+     */
+    /**
+     * Records the result of the auction of this period: who collects and the discount they offered.
+     */
+    public void applyAuctionResult(UUID winnerMembershipId, Money discount) {
+        this.payoutMembershipId = winnerMembershipId;
+        this.discount = discount;
+    }
+
+    /**
+     * What the member who collects receives: the pot, less the discount they offered in an auction.
+     */
+    public Money payoutAmount() {
+        return discount == null ? potAmount() : potAmount().minus(discount);
+    }
+
+    /**
+     * Restores the discount of an auction from persistence.
+     */
+    public void restoreDiscount(@Nullable Money discount) {
+        this.discount = discount;
     }
 
     public void restoreState(UUID id, UUID cycleId, int turnNumber, LocalDate opensAt, LocalDate cutoffDate,

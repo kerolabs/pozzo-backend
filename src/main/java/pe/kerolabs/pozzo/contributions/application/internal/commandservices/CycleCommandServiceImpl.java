@@ -1,10 +1,12 @@
 package pe.kerolabs.pozzo.contributions.application.internal.commandservices;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.commandservices.CycleCommandService;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageRules;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
+import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Auction;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
@@ -16,12 +18,18 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
+import pe.kerolabs.pozzo.contributions.domain.repositories.AuctionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.PeriodRepository;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
+import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Starts cycles and moves them from one turn to the next as each pot is delivered.
@@ -33,13 +41,16 @@ public class CycleCommandServiceImpl implements CycleCommandService {
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ReceiptImageStorage receiptImageStorage;
+    private final AuctionRepository auctionRepository;
     private final Clock clock;
 
     public CycleCommandServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository,
-                                   ReceiptImageStorage receiptImageStorage, Clock clock) {
+                                   ReceiptImageStorage receiptImageStorage, AuctionRepository auctionRepository,
+                                   Clock clock) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
         this.receiptImageStorage = receiptImageStorage;
+        this.auctionRepository = auctionRepository;
         this.clock = clock;
     }
 
@@ -54,10 +65,32 @@ public class CycleCommandServiceImpl implements CycleCommandService {
                 command.firstContributionDate(), command.destinationMethod(), command.destinationPhone(),
                 command.organizerName());
         var cycle = Cycle.start(command.groupId(), command.groupName(), command.organizerAccountId(), rules,
-                command.turns(), now);
+                command.turns(), command.auction(), now);
         var saved = cycleRepository.save(cycle);
-        periodRepository.save(Period.open(saved, 1, now));
+        openAuctionIfDue(saved, periodRepository.save(Period.open(saved, 1, now)), now);
         return Result.success(saved);
+    }
+
+    /**
+     * Opens the auction of a period of an auction cycle while more than one member has not collected; the last
+     * one collects the full pot without an auction.
+     */
+    private void openAuctionIfDue(Cycle cycle, Period period, Instant now) {
+        if (cycle.isAuction() && cycle.stillToCollect().size() > 1) {
+            auctionRepository.save(Auction.open(cycle, period, now));
+        }
+    }
+
+    /**
+     * The credit each member who still has not collected earned from the discount of the auction just closed.
+     */
+    private static Map<UUID, Money> creditsAfter(@Nullable Auction auction, Cycle cycle) {
+        if (auction == null || auction.getCreditPerMember() == null || auction.getCreditPerMember().amount().signum() == 0) {
+            return Map.of();
+        }
+        var credits = new HashMap<UUID, Money>();
+        cycle.stillToCollect().forEach(turn -> credits.put(turn.membershipId(), auction.getCreditPerMember()));
+        return credits;
     }
 
     @Override
@@ -68,17 +101,25 @@ public class CycleCommandServiceImpl implements CycleCommandService {
                 .map(access -> {
                     var cycle = access.cycle();
                     var period = access.period();
+                    var auction = auctionRepository.findByPeriodId(period.getId());
+                    if (auction.filter(Auction::isOpen).isPresent()) {
+                        throw new BusinessRuleViolationException("AUCTION_STILL_OPEN",
+                                "The auction of this turn must close before delivering the pot");
+                    }
                     period.deliverPot(command.requesterAccountId(), now);
                     var delivered = periodRepository.save(period);
                     Period next = null;
                     if (cycle.hasRemainingTurns()) {
                         var nextTurn = cycle.advanceToNextTurn();
-                        next = Period.open(cycle, nextTurn, now);
+                        next = Period.open(cycle, nextTurn, creditsAfter(auction.orElse(null), cycle), now);
                     } else {
                         cycle.close(now);
                     }
                     var savedCycle = cycleRepository.save(cycle);
                     var savedNext = next == null ? null : periodRepository.save(next);
+                    if (savedNext != null) {
+                        openAuctionIfDue(savedCycle, savedNext, now);
+                    }
                     return new PotDelivery(savedCycle, delivered, savedNext);
                 });
     }

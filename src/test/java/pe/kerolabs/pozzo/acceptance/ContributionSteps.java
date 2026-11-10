@@ -82,6 +82,32 @@ public class ContributionSteps {
         assertThat(shared.text("$.operationNumberEnding")).isEqualTo(ending);
     }
 
+    @When("{string} bids S\\/ {int} for the turn")
+    public void bidsForTheTurn(String name, int amount) {
+        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/auction/bids", state.member(name),
+                Map.of("amount", amount)));
+    }
+
+    @When("{string} closes the auction of the turn")
+    public void closesTheAuction(String organizer) {
+        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/auction/close",
+                state.member(organizer), null));
+    }
+
+    @Then("{string} wins the turn by {string} and receives S\\/ {int}")
+    public void winsTheTurn(String name, String resolution, int amount) {
+        assertThat(state.response().text("$.winnerName")).isEqualTo(name);
+        assertThat(state.response().text("$.resolution")).isEqualTo(resolution);
+        assertThat(state.response().<Number>read("$.payoutAmount").intValue()).isEqualTo(amount);
+    }
+
+    @Then("the turn went by {string} and its member receives S\\/ {int}")
+    public void theTurnWentBy(String resolution, int amount) {
+        assertThat(state.response().text("$.resolution")).isEqualTo(resolution);
+        assertThat(state.response().text("$.winnerName")).isNotBlank();
+        assertThat(state.response().<Number>read("$.payoutAmount").intValue()).isEqualTo(amount);
+    }
+
     @Then("the contribution is in status {string} without inconsistencies")
     public void isValidatedWithoutInconsistencies(String status) {
         theContributionIsInStatus(status);

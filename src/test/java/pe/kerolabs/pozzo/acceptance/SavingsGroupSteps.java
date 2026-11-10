@@ -301,6 +301,12 @@ public class SavingsGroupSteps {
                 "firstMembershipId", membershipOf(first), "secondMembershipId", membershipOf(second))));
     }
 
+    @When("{string} auctions the turns with a minimum bid of S\\/ {int} and a draw when nobody bids")
+    public void auctionsTheTurns(String organizer, int minimumBid) {
+        state.keepResponse(api.post(groupPath() + "/turns/auction", state.member(organizer), Map.of(
+                "closesDaysBeforeCutoff", 2, "minimumBid", minimumBid, "fallback", "DRAW")));
+    }
+
     @Then("the turns follow the order {string}, {string}, {string}")
     public void theTurnsFollowTheOrder(String first, String second, String third) {
         assertThat(state.response().<List<String>>read("$.turns[*].displayName")).containsExactly(first, second, third);

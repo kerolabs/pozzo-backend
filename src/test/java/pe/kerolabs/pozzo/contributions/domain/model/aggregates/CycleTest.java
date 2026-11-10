@@ -134,4 +134,16 @@ class CycleTest {
         assertThat(turn.turnNumber()).isEqualTo(2);
         assertThat(cycle.turn(2).membershipId()).isEqualTo(rosa);
     }
+
+    @Test
+    void theWinnerOfAnAuctionTakesTheTurnInProgressFromItsProvisionalHolder() {
+        var cycle = twoTurnCycle();
+        var first = cycle.turn(1).membershipId();
+        var second = cycle.turn(2).membershipId();
+
+        cycle.giveCurrentTurnTo(second);
+
+        assertThat(cycle.turn(1).membershipId()).isEqualTo(second);
+        assertThat(cycle.turn(2).membershipId()).isEqualTo(first);
+    }
 }

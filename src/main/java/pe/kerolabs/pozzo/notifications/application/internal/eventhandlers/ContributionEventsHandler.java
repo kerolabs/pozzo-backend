@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
+import pe.kerolabs.pozzo.contributions.interfaces.events.AuctionIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationEvent;
@@ -109,6 +110,22 @@ public class ContributionEventsHandler {
                         NotificationTexts.turnSwapped(event.groupName(), swapped.turnNumber(), event.groupId()),
                         "turn-swapped:%s:%s:%s".formatted(event.cycleId(), swapped.member().membershipId(),
                                 event.occurredAt().toEpochMilli()))));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(AuctionIntegrationEvent event) {
+        var opened = AuctionIntegrationEvent.OPENED.equals(event.stage());
+        event.members().stream()
+                .filter(member -> member.accountId() != null)
+                .forEach(member -> notificationCommandService.handle(new SendAlertCommand(member.accountId(),
+                        event.groupId(), event.periodId(),
+                        opened
+                                ? NotificationTexts.auctionOpened(event.groupName(), event.turnNumber(),
+                                event.closesOn(), event.groupId())
+                                : NotificationTexts.auctionClosed(event.groupName(), event.turnNumber(),
+                                event.winner().displayName(), event.payoutAmount(), event.groupId()),
+                        "auction-" + event.stage().toLowerCase() + ":" + event.periodId() + ":" + member.accountId())));
     }
 
     @TransactionalEventListener(fallbackExecution = true)

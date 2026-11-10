@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.contributions.infrastructure.persistence.jpa.assemblers;
 
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.AuctionSettings;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
@@ -30,6 +31,10 @@ public final class CyclePersistenceAssembler {
         var cycle = new Cycle();
         cycle.restoreState(entity.getId(), entity.getGroupId(), entity.getGroupName(), entity.getOrganizerAccountId(),
                 rules, turns, entity.getCurrentTurn(), entity.getStatus(), entity.getStartedAt(), entity.getClosedAt());
+        if (entity.getAuctionFallback() != null) {
+            cycle.restoreAuctionSettings(new AuctionSettings(entity.getAuctionClosesDaysBefore(),
+                    Money.of(entity.getAuctionMinimumBid(), entity.getCurrency()), entity.getAuctionFallback()));
+        }
         return cycle;
     }
 
@@ -55,6 +60,10 @@ public final class CyclePersistenceAssembler {
         entity.setStatus(cycle.getStatus());
         entity.setStartedAt(cycle.getStartedAt());
         entity.setClosedAt(cycle.getClosedAt());
+        var auction = cycle.getAuctionSettings();
+        entity.setAuctionClosesDaysBefore(auction == null ? null : auction.closesDaysBeforeCutoff());
+        entity.setAuctionMinimumBid(auction == null ? null : auction.minimumBid().amount());
+        entity.setAuctionFallback(auction == null ? null : auction.fallback());
         entity.getTurns().clear();
         cycle.getTurns().forEach(turn -> entity.getTurns().add(new CycleTurnEmbeddable(
                 turn.turnNumber(), turn.membershipId(), turn.accountId(), turn.displayName())));
