@@ -38,8 +38,6 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ContributionQueryServiceImpl implements ContributionQueryService {
 
-    /** Long enough to open the image, short enough that a copied link soon stops working. */
-
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
     private final ContributionRepository contributionRepository;

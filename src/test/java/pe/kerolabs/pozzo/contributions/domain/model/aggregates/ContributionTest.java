@@ -144,6 +144,7 @@ class ContributionTest {
         assertThat(late.arrivedBy(CUTOFF, ZoneId.of("America/Lima"))).isFalse();
     }
 
+    @Test
     void aSettledContributionAlwaysGivesTheSameVerificationLink() {
         var contribution = Contribution.inCash(cycleId, periodId, membershipId, accountId, EXPECTED,
                 LocalDate.parse("2026-10-10"), CUTOFF, organizerId, NOW);

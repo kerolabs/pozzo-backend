@@ -135,6 +135,7 @@ class PeriodTest {
         assertThat(period.getPayoutProofPath()).isEqualTo("period/transfer.png");
     }
 
+    @Test
     void theReplacementOwesWhatTheMemberWhoDroppedOutStillOwed() {
         var rosa = UUID.randomUUID();
         period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);

@@ -163,6 +163,7 @@ class SavingsGroupTest {
         assertThat(group.linkManualMember("+51923456789", sofia, NOW)).isEmpty();
     }
 
+    @Test
     void aClosedGroupOpensItsNextCycleWithTheSameRulesAndMembers() {
         var marta = group.addManualMember("Marta Quispe", "+51923456789", NOW);
         group.join(UUID.randomUUID(), "Sofia Gonzales", NOW);

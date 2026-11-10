@@ -89,6 +89,7 @@ class CycleTest {
         assertThat(cycle.linkAccount(UUID.randomUUID(), marta, NOW)).isFalse();
     }
 
+    @Test
     void theOrganizerSwapsTwoTurnsWhosePeriodsHaveNotStarted() {
         var cycle = Cycle.start(UUID.randomUUID(), "Junta de la familia Weber", organizer, PeriodTest.monthlyRules(),
                 List.of(new CycleTurn(1, UUID.randomUUID(), organizer, "Anna Weber"),
@@ -119,6 +120,7 @@ class CycleTest {
                 .extracting("code").isEqualTo("SAME_MEMBER");
     }
 
+    @Test
     void theReplacementTakesATurnThatWasNotCollected() {
         var cycle = twoTurnCycle();
         var first = cycle.turn(1).membershipId();
