@@ -35,6 +35,13 @@ Feature: TS07 Reminders and notifications service
     When 2 days pass after the cutoff and the due reminders go out
     Then "Sofia Gonzales" does not have the notice "Tu aporte está atrasado"
 
+  Scenario: Turning the reminders off stops the ones already queued
+    Given "Anna Weber" started a group with "Sofia Gonzales"
+    And a reminder is waiting for "Sofia Gonzales" in the group
+    When "Anna Weber" turns the reminders of the group off
+    Then the service responds 200 OK
+    And no reminder is waiting for "Sofia Gonzales" in the group
+
   Scenario Outline: Notices by event
     Given "Anna Weber" started a group with "Sofia Gonzales" that sends the contributions to Yape
     When <event>
