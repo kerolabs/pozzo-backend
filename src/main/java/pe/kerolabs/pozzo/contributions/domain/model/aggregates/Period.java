@@ -40,6 +40,7 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     private PeriodStatus status;
     private @Nullable Instant deliveredAt;
     private @Nullable UUID deliveredBy;
+    private @Nullable String payoutProofPath;
 
     public Period() {
     }
@@ -140,6 +141,24 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
         registerDomainEvent(new PotDeliveredEvent(id, cycleId, turnNumber, payoutMembershipId, now));
     }
 
+    /**
+     * Keeps the image of the transfer with which the organizer delivered the pot. Attaching another one
+     * replaces it.
+     *
+     * @param path where the image is stored
+     */
+    public void attachPayoutProof(String path) {
+        if (status != PeriodStatus.DELIVERED) {
+            throw new BusinessRuleViolationException("POT_NOT_DELIVERED",
+                    "The proof can only be attached once the pot was delivered");
+        }
+        this.payoutProofPath = path;
+    }
+
+    public boolean hasPayoutProof() {
+        return payoutProofPath != null;
+    }
+
     public List<ExpectedContribution> getExpected() {
         return Collections.unmodifiableList(expected);
     }
@@ -149,7 +168,8 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
      */
     public void restoreState(UUID id, UUID cycleId, int turnNumber, LocalDate opensAt, LocalDate cutoffDate,
                              UUID payoutMembershipId, List<ExpectedContribution> expected, PeriodStatus status,
-                             @Nullable Instant deliveredAt, @Nullable UUID deliveredBy) {
+                             @Nullable Instant deliveredAt, @Nullable UUID deliveredBy,
+                             @Nullable String payoutProofPath) {
         this.id = id;
         this.cycleId = cycleId;
         this.turnNumber = turnNumber;
@@ -160,5 +180,6 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
         this.status = status;
         this.deliveredAt = deliveredAt;
         this.deliveredBy = deliveredBy;
+        this.payoutProofPath = payoutProofPath;
     }
 }

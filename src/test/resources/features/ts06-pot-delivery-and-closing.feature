@@ -28,6 +28,24 @@ Feature: TS06 Pot delivery and closing service
     Then the service responds 422 Unprocessable Entity
     And the error code is "POT_NOT_COMPLETE"
 
+  Scenario: Attach the transfer of a delivered pot
+    Given every member paid the current period
+    And "Anna Weber" confirmed the delivery of the pot
+    When "Anna Weber" attaches the proof of the delivery
+    Then the service responds 200 OK
+    And "Sofia Gonzales" can see the proof of the delivery
+
+  Scenario: Attach the transfer before delivering the pot
+    When "Anna Weber" attaches the proof of the delivery
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "POT_NOT_DELIVERED"
+
+  Scenario: Only the organizer attaches the transfer of the pot
+    Given every member paid the current period
+    And "Anna Weber" confirmed the delivery of the pot
+    When "Sofia Gonzales" attaches the proof of the delivery
+    Then the service responds 403 Forbidden
+
   Scenario: Cover the contribution of a member
     When "Anna Weber" covers the contribution of "Sofia Gonzales"
     Then the service responds 201 Created

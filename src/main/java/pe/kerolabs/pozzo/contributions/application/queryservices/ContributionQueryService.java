@@ -5,6 +5,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuer
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
@@ -48,4 +49,10 @@ public interface ContributionQueryService {
      * organizer; empty when the requester may not see it or there is no image.
      */
     Optional<ReceiptImageLink> handle(GetReceiptImageQuery query);
+
+    /**
+     * A temporary link to the image of the transfer with which the pot of a period was delivered, for any
+     * member of the cycle; empty when the requester is not a member or there is no image.
+     */
+    Optional<ReceiptImageLink> handle(GetPayoutProofQuery query);
 }

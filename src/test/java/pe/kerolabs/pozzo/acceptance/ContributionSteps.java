@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.acceptance;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.support.PozzoApi;
 import pe.kerolabs.pozzo.support.PozzoApi.Response;
 
@@ -17,6 +18,9 @@ public class ContributionSteps {
 
     private final PozzoApi api;
     private final ScenarioState state;
+
+    /** The period whose pot was delivered last in this scenario. */
+    private @Nullable String deliveredPeriodId;
 
     public ContributionSteps(PozzoApi api, ScenarioState state) {
         this.api = api;
@@ -155,7 +159,25 @@ public class ContributionSteps {
     @When("{string} confirms the delivery of the pot")
     @Given("{string} confirmed the delivery of the pot")
     public void confirmsTheDelivery(String organizer) {
-        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/payout", state.member(organizer), null));
+        var periodId = currentPeriodId();
+        state.keepResponse(api.post("/api/v1/periods/" + periodId + "/payout", state.member(organizer), null));
+        if (state.response().status() == 200) {
+            deliveredPeriodId = periodId;
+        }
+    }
+
+    @When("{string} attaches the proof of the delivery")
+    public void attachesTheProofOfTheDelivery(String name) {
+        var periodId = deliveredPeriodId != null ? deliveredPeriodId : currentPeriodId();
+        state.keepResponse(api.upload("/api/v1/periods/" + periodId + "/payout/proof", state.member(name),
+                new byte[]{(byte) 0x89, 'P', 'N', 'G'}, "image/png"));
+    }
+
+    @Then("{string} can see the proof of the delivery")
+    public void canSeeTheProofOfTheDelivery(String name) {
+        var proof = api.get("/api/v1/periods/" + deliveredPeriodId + "/payout/proof", state.member(name));
+        assertThat(proof.status()).as(proof.body()).isEqualTo(200);
+        assertThat(proof.text("$.url")).isNotBlank();
     }
 
     @Then("the period was delivered and turn {int} is open")

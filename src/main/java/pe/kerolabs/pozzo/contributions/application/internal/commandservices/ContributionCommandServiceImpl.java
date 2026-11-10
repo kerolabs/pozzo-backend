@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.application.internal.commandservices;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.commandservices.ContributionCommandService;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageRules;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
@@ -23,7 +24,6 @@ import pe.kerolabs.pozzo.shared.application.result.Result;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -34,8 +34,6 @@ import java.util.UUID;
 @Transactional
 public class ContributionCommandServiceImpl implements ContributionCommandService {
 
-    static final int MAX_RECEIPT_IMAGE_BYTES = 2 * 1024 * 1024;
-    private static final Set<String> RECEIPT_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
@@ -159,11 +157,9 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
 
     @Override
     public Result<Contribution, ApplicationError> handle(AttachReceiptImageCommand command) {
-        if (command.contentType() == null || !RECEIPT_IMAGE_TYPES.contains(command.contentType())) {
-            return Result.failure(ApplicationError.validationError("image", "must be a JPEG, PNG or WebP image"));
-        }
-        if (command.content().length == 0 || command.content().length > MAX_RECEIPT_IMAGE_BYTES) {
-            return Result.failure(ApplicationError.validationError("image", "must weigh up to 2 MB"));
+        var invalid = ReceiptImageRules.check(command.content(), command.contentType());
+        if (invalid.isPresent()) {
+            return Result.failure(invalid.get());
         }
         // Only the member who registered the contribution; anyone else gets the same answer as for a missing one.
         var contribution = contributionRepository.findById(command.contributionId())

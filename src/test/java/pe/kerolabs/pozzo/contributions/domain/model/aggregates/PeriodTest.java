@@ -116,4 +116,21 @@ class PeriodTest {
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("POT_ALREADY_DELIVERED");
     }
+
+    @Test
+    void theTransferOfThePotIsKeptOnlyOnceItWasDelivered() {
+        period.settle(anna, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(marta, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+
+        assertThatThrownBy(() -> period.attachPayoutProof("period/transfer.png"))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("POT_NOT_DELIVERED");
+
+        period.deliverPot(organizerAccount, NOW);
+        period.attachPayoutProof("period/transfer.png");
+
+        assertThat(period.hasPayoutProof()).isTrue();
+        assertThat(period.getPayoutProofPath()).isEqualTo("period/transfer.png");
+    }
 }

@@ -34,6 +34,12 @@ public class TestcontainersConfiguration {
     }
 
     @Bean
+    @Primary
+    InMemoryReceiptImageStorage inMemoryReceiptImageStorage(MutableClock clock) {
+        return new InMemoryReceiptImageStorage(clock);
+    }
+
+    @Bean
     PozzoApi pozzoApi(MockMvc mockMvc, RecordingSmsSender sms) {
         return new PozzoApi(mockMvc, sms);
     }

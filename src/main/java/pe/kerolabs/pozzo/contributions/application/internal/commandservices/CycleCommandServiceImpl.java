@@ -3,8 +3,11 @@ package pe.kerolabs.pozzo.contributions.application.internal.commandservices;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.kerolabs.pozzo.contributions.application.commandservices.CycleCommandService;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageRules;
+import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageStorage;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
@@ -26,11 +29,14 @@ public class CycleCommandServiceImpl implements CycleCommandService {
 
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
+    private final ReceiptImageStorage receiptImageStorage;
     private final Clock clock;
 
-    public CycleCommandServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository, Clock clock) {
+    public CycleCommandServiceImpl(CycleRepository cycleRepository, PeriodRepository periodRepository,
+                                   ReceiptImageStorage receiptImageStorage, Clock clock) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
+        this.receiptImageStorage = receiptImageStorage;
         this.clock = clock;
     }
 
@@ -82,5 +88,26 @@ public class CycleCommandServiceImpl implements CycleCommandService {
         }
         cycleRepository.save(cycle.get());
         return Result.success(true);
+    }
+
+    @Override
+    public Result<Period, ApplicationError> handle(AttachPayoutProofCommand command) {
+        var invalid = ReceiptImageRules.check(command.content(), command.contentType());
+        if (invalid.isPresent()) {
+            return Result.failure(invalid.get());
+        }
+        return CycleAccess.requireOrganizer(cycleRepository, periodRepository, command.periodId(),
+                        command.requesterAccountId())
+                .flatMap(access -> {
+                    var period = access.period();
+                    // Checked before storing, so no image is uploaded for a pot that was not delivered.
+                    if (!period.isDelivered()) {
+                        return Result.failure(ApplicationError.businessRuleViolation("POT_NOT_DELIVERED",
+                                "The proof can only be attached once the pot was delivered"));
+                    }
+                    period.attachPayoutProof(receiptImageStorage.store(period.getId(), command.content(),
+                            command.contentType()));
+                    return Result.success(periodRepository.save(period));
+                });
     }
 }

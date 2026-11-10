@@ -30,7 +30,7 @@ public final class PeriodPersistenceAssembler {
         var period = new Period();
         period.restoreState(entity.getId(), entity.getCycleId(), entity.getTurnNumber(), entity.getOpensAt(),
                 entity.getCutoffDate(), entity.getPayoutMembershipId(), expected, entity.getStatus(),
-                entity.getDeliveredAt(), entity.getDeliveredBy());
+                entity.getDeliveredAt(), entity.getDeliveredBy(), entity.getPayoutProofPath());
         return period;
     }
 
@@ -47,6 +47,7 @@ public final class PeriodPersistenceAssembler {
         entity.setPayoutMembershipId(period.getPayoutMembershipId());
         entity.setStatus(period.getStatus());
         entity.setDeliveredAt(period.getDeliveredAt());
+        entity.setPayoutProofPath(period.getPayoutProofPath());
         entity.setDeliveredBy(period.getDeliveredBy());
         var existing = entity.getExpected().stream()
                 .collect(Collectors.toMap(ExpectedContributionPersistenceEntity::getId, Function.identity()));
