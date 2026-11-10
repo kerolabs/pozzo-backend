@@ -5,6 +5,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import pe.kerolabs.pozzo.notifications.application.commandservices.NotificationCommandService;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.DispatchDueNotificationsCommand;
+import pe.kerolabs.pozzo.notifications.domain.repositories.NotificationRepository;
 import pe.kerolabs.pozzo.shared.application.result.Result;
 import pe.kerolabs.pozzo.support.MutableClock;
 import pe.kerolabs.pozzo.support.PozzoApi;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,13 +28,16 @@ public class NotificationSteps {
     private final ScenarioState state;
     private final MutableClock clock;
     private final NotificationCommandService notificationCommandService;
+    private final NotificationRepository notificationRepository;
 
     public NotificationSteps(PozzoApi api, ScenarioState state, MutableClock clock,
-                             NotificationCommandService notificationCommandService) {
+                             NotificationCommandService notificationCommandService,
+                             NotificationRepository notificationRepository) {
         this.api = api;
         this.state = state;
         this.clock = clock;
         this.notificationCommandService = notificationCommandService;
+        this.notificationRepository = notificationRepository;
     }
 
     /**
@@ -55,6 +60,26 @@ public class NotificationSteps {
         } finally {
             clock.advance(shift.negated());
         }
+    }
+
+    @When("{string} turns the reminders of the group off")
+    public void turnsTheRemindersOff(String name) {
+        state.keepResponse(api.put("/api/v1/groups/" + state.groupId() + "/reminder-plan", state.member(name),
+                Map.of("offsetsInDays", List.of(3, 1, 0), "sendHour", 9, "enabled", false)));
+    }
+
+    @Given("a reminder is waiting for {string} in the group")
+    public void aReminderIsWaiting(String name) {
+        var accountId = UUID.fromString(state.member(name).accountId());
+        assertThat(notificationRepository.findScheduledRemindersByGroupId(UUID.fromString(state.groupId())))
+                .anyMatch(reminder -> reminder.getAccountId().equals(accountId));
+    }
+
+    @Then("no reminder is waiting for {string} in the group")
+    public void noReminderIsWaiting(String name) {
+        var accountId = UUID.fromString(state.member(name).accountId());
+        assertThat(notificationRepository.findScheduledRemindersByGroupId(UUID.fromString(state.groupId())))
+                .noneMatch(reminder -> reminder.getAccountId().equals(accountId));
     }
 
     @When("{string} registers a phone with the push token {string}")

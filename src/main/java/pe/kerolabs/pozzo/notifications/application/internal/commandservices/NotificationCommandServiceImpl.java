@@ -107,6 +107,13 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
         } catch (IllegalArgumentException e) {
             return Result.failure(ApplicationError.validationError("reminderPlan", e.getMessage()));
         }
+        if (!plan.isEnabled()) {
+            // The reminders of the period already open were queued when it opened; they stop from now on too.
+            notificationRepository.findScheduledRemindersByGroupId(plan.getGroupId()).forEach(reminder -> {
+                reminder.cancel();
+                notificationRepository.save(reminder);
+            });
+        }
         return Result.success(reminderPlanRepository.save(plan));
     }
 
