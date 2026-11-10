@@ -4,10 +4,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
-
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
