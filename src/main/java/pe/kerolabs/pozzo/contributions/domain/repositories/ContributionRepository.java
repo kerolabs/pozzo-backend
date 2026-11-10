@@ -28,5 +28,10 @@ public interface ContributionRepository {
      */
     boolean existsByCycleIdAndOperationNumber(UUID cycleId, String operationNumber);
 
+    /**
+     * The contribution a public verification link points to.
+     */
+    Optional<Contribution> findByVerificationToken(String token);
+
     Contribution save(Contribution contribution);
 }

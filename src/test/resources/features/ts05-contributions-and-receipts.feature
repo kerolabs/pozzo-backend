@@ -55,3 +55,15 @@ Feature: TS05 Contributions and receipts service
     Then the service responds 200 OK
     And the pot has S/ 200 collected of S/ 400 and S/ 200 missing
     And the pot shows who collects, the days to the cutoff and the state of each member
+
+  Scenario: Share a contribution with a link anyone can verify
+    Given "Sofia Gonzales" registered a receipt of S/ 200 paid to "Anna Weber" with the operation "04581273"
+    When "Sofia Gonzales" shares the contribution
+    Then the service responds 200 OK
+    And anyone who opens the link sees the contribution of "Sofia Gonzales" of S/ 200 with the operation ending "1273"
+
+  Scenario: A contribution under review cannot be shared
+    Given "Sofia Gonzales" registered a receipt of S/ 150 paid to "Anna Weber" with the operation "04581273"
+    When "Sofia Gonzales" shares the contribution
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "CONTRIBUTION_NOT_SETTLED"

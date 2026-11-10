@@ -13,6 +13,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.PaymentReceipt;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Review;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ReviewDecision;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.VerificationToken;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 import pe.kerolabs.pozzo.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
@@ -50,6 +51,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
     private Instant registeredAt;
     private @Nullable String receiptImagePath;
     private @Nullable LocalDate receivedOn;
+    private @Nullable VerificationToken verificationToken;
 
     public Contribution() {
     }
@@ -184,7 +186,8 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
                              @Nullable PaymentReceipt receipt, List<Inconsistency> inconsistencies,
                              @Nullable UUID coveredByMembershipId, UUID registeredByAccountId,
                              @Nullable Review review, Instant registeredAt, @Nullable String receiptImagePath,
-                             @Nullable LocalDate receivedOn) {
+                             @Nullable LocalDate receivedOn,
+                             @Nullable VerificationToken verificationToken) {
         this.id = id;
         this.cycleId = cycleId;
         this.periodId = periodId;
@@ -201,6 +204,22 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         this.registeredAt = registeredAt;
         this.receiptImagePath = receiptImagePath;
         this.receivedOn = receivedOn;
+        this.verificationToken = verificationToken;
+    }
+
+    /**
+     * The token of the public link that proves this contribution was registered. The same contribution always
+     * gives the same link, so a link already sent keeps working.
+     */
+    public VerificationToken shareVerifiably() {
+        if (!isValid()) {
+            throw new BusinessRuleViolationException("CONTRIBUTION_NOT_SETTLED",
+                    "Only a contribution that counts for the pot can be shared");
+        }
+        if (verificationToken == null) {
+            verificationToken = VerificationToken.random();
+        }
+        return verificationToken;
     }
 
     private void requireUnderReview() {

@@ -5,6 +5,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Inconsistency;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.PaymentReceipt;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Review;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.VerificationToken;
 import pe.kerolabs.pozzo.contributions.infrastructure.persistence.jpa.embeddables.InconsistencyEmbeddable;
 import pe.kerolabs.pozzo.contributions.infrastructure.persistence.jpa.entities.ContributionPersistenceEntity;
 
@@ -34,7 +35,8 @@ public final class ContributionPersistenceAssembler {
         contribution.restoreState(entity.getId(), entity.getCycleId(), entity.getPeriodId(), entity.getMembershipId(),
                 entity.getAccountId(), Money.of(entity.getAmount(), currency), entity.getMethod(), entity.getStatus(),
                 receipt, inconsistencies, entity.getCoveredByMembershipId(), entity.getRegisteredByAccountId(),
-                review, entity.getRegisteredAt(), entity.getReceiptImagePath(), entity.getReceivedOn());
+                review, entity.getRegisteredAt(), entity.getReceiptImagePath(), entity.getReceivedOn(),
+                entity.getVerificationToken() == null ? null : new VerificationToken(entity.getVerificationToken()));
         return contribution;
     }
 
@@ -54,6 +56,8 @@ public final class ContributionPersistenceAssembler {
         entity.setStatus(contribution.getStatus());
         entity.setRegisteredAt(contribution.getRegisteredAt());
         entity.setReceivedOn(contribution.getReceivedOn());
+        entity.setVerificationToken(contribution.getVerificationToken() == null
+                ? null : contribution.getVerificationToken().value());
         entity.setRegisteredByAccountId(contribution.getRegisteredByAccountId());
         entity.setReceiptImagePath(contribution.getReceiptImagePath());
         var receipt = contribution.getReceipt();
