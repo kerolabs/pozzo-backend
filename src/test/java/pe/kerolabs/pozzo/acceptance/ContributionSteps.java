@@ -97,6 +97,13 @@ public class ContributionSteps {
         assertThat(statusInPot(name)).isEqualTo("VALIDATED");
     }
 
+    @Then("{string} sees the contribution of the current period as {string}")
+    public void seesTheContributionAs(String name, String status) {
+        var mine = api.get("/api/v1/cycles/" + state.cycleId() + "/members/me/contributions", state.member(name));
+        assertThat(mine.status()).as(mine.body()).isEqualTo(200);
+        assertThat(mine.text("$.periods[0].status")).isEqualTo(status);
+    }
+
     @Then("{string} appears as covered in the pot")
     public void appearsAsCovered(String name) {
         assertThat(statusInPot(name)).isEqualTo("COVERED");

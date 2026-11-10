@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.domain.model.aggregates;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleStartedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
@@ -122,6 +123,32 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         this.status = CycleStatus.CLOSED;
         this.closedAt = now;
         registerDomainEvent(new CycleClosedEvent(id, groupId, now));
+    }
+
+    /**
+     * Gives the turn of a member who took part without the application to the account they signed up with, so
+     * from now on they register and see their own contributions.
+     *
+     * @return false when the membership has no turn in this cycle or already has that account
+     */
+    public boolean linkAccount(UUID membershipId, UUID accountId, Instant now) {
+        for (var index = 0; index < turns.size(); index++) {
+            var turn = turns.get(index);
+            if (!turn.membershipId().equals(membershipId)) {
+                continue;
+            }
+            if (turn.belongsTo(accountId)) {
+                return false;
+            }
+            turns.set(index, new CycleTurn(turn.turnNumber(), membershipId, accountId, turn.displayName()));
+            registerDomainEvent(new CycleMemberLinkedEvent(id, groupId, membershipId, accountId, now));
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isClosed() {
+        return status == CycleStatus.CLOSED;
     }
 
     public List<CycleTurn> getTurns() {

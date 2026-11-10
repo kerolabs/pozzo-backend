@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.adapters;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.repositories.SavingsGroupRepository;
 import pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.assemblers.SavingsGroupPersistenceAssembler;
@@ -40,6 +41,13 @@ public class SavingsGroupRepositoryImpl implements SavingsGroupRepository {
     @Override
     public List<SavingsGroup> findAllByMemberId(UUID memberId) {
         return persistenceRepository.findAllByMember(memberId, ACTIVE_STATUSES).stream()
+                .map(SavingsGroupPersistenceAssembler::toDomainFromPersistence)
+                .toList();
+    }
+
+    @Override
+    public List<SavingsGroup> findAllWithUnlinkedManualMember(String phone) {
+        return persistenceRepository.findAllWithUnlinkedMember(phone, MembershipKind.MANUAL).stream()
                 .map(SavingsGroupPersistenceAssembler::toDomainFromPersistence)
                 .toList();
     }

@@ -3,27 +3,35 @@ package pe.kerolabs.pozzo.contributions.application.internal.eventhandlers;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionCoveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionRejectedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionValidatedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.InconsistencyDetectedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.PeriodOpenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.PotCompletedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.PotDeliveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionMethod;
+import pe.kerolabs.pozzo.contributions.domain.repositories.ContributionRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
 import pe.kerolabs.pozzo.contributions.domain.repositories.PeriodRepository;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMember;
+import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegrationEvent.SettledContribution;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PeriodOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PotIntegrationEvent;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,14 +44,20 @@ import java.util.UUID;
 @Component
 public class IntegrationEventsPublisher {
 
+    /** The groups are in Peru; cash registered before its date was stored counts by this day. */
+    private static final ZoneId GROUP_ZONE = ZoneId.of("America/Lima");
+
     private final CycleRepository cycleRepository;
     private final PeriodRepository periodRepository;
+    private final ContributionRepository contributionRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     public IntegrationEventsPublisher(CycleRepository cycleRepository, PeriodRepository periodRepository,
+                                      ContributionRepository contributionRepository,
                                       ApplicationEventPublisher eventPublisher) {
         this.cycleRepository = cycleRepository;
         this.periodRepository = periodRepository;
+        this.contributionRepository = contributionRepository;
         this.eventPublisher = eventPublisher;
     }
 
@@ -108,6 +122,30 @@ public class IntegrationEventsPublisher {
         var cycle = cycle(event.cycleId());
         eventPublisher.publishEvent(new CycleClosedIntegrationEvent(cycle.getId(), cycle.getGroupId(),
                 cycle.getGroupName(), members(cycle), event.occurredAt()));
+    }
+
+    @EventListener
+    public void on(CycleMemberLinkedEvent event) {
+        var cycle = cycle(event.cycleId());
+        var settled = contributionRepository.findAllByCycleIdAndMembershipId(cycle.getId(), event.membershipId())
+                .stream()
+                .filter(Contribution::isSettled)
+                .sorted(Comparator.comparing(Contribution::getRegisteredAt))
+                .map(contribution -> new SettledContribution(contribution.getId(), contribution.getPeriodId(),
+                        outcomeOf(contribution), contribution.getRegisteredAt()))
+                .toList();
+        eventPublisher.publishEvent(new CycleMemberLinkedIntegrationEvent(cycle.getId(), cycle.getGroupId(),
+                cycle.getGroupName(), event.membershipId(), event.accountId(), settled, cycle.isClosed(),
+                event.occurredAt()));
+    }
+
+    private String outcomeOf(Contribution contribution) {
+        if (contribution.getMethod() == ContributionMethod.COVERAGE) {
+            return ContributionSettledIntegrationEvent.COVERED;
+        }
+        return contribution.arrivedBy(period(contribution.getPeriodId()).getCutoffDate(), GROUP_ZONE)
+                ? ContributionSettledIntegrationEvent.ON_TIME
+                : ContributionSettledIntegrationEvent.LATE;
     }
 
     private void publishPot(UUID periodId, UUID cycleId, String stage, Instant occurredAt) {

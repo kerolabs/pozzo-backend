@@ -18,6 +18,7 @@ import pe.kerolabs.pozzo.shared.domain.model.aggregates.AbstractDomainAggregateR
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +49,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
     private @Nullable Review review;
     private Instant registeredAt;
     private @Nullable String receiptImagePath;
+    private @Nullable LocalDate receivedOn;
 
     public Contribution() {
     }
@@ -96,6 +98,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
                                       UUID organizerAccountId, Instant now) {
         var contribution = base(cycleId, periodId, membershipId, accountId, amount, ContributionMethod.CASH,
                 organizerAccountId, now);
+        contribution.receivedOn = receivedOn;
         contribution.status = ContributionStatus.VALIDATED;
         contribution.registerDomainEvent(new ContributionValidatedEvent(contribution.id, cycleId, periodId,
                 membershipId, accountId, ContributionMethod.CASH, !receivedOn.isAfter(cutoffDate), now));
@@ -180,7 +183,8 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
                              Money amount, ContributionMethod method, ContributionStatus status,
                              @Nullable PaymentReceipt receipt, List<Inconsistency> inconsistencies,
                              @Nullable UUID coveredByMembershipId, UUID registeredByAccountId,
-                             @Nullable Review review, Instant registeredAt, @Nullable String receiptImagePath) {
+                             @Nullable Review review, Instant registeredAt, @Nullable String receiptImagePath,
+                             @Nullable LocalDate receivedOn) {
         this.id = id;
         this.cycleId = cycleId;
         this.periodId = periodId;
@@ -196,6 +200,7 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         this.review = review;
         this.registeredAt = registeredAt;
         this.receiptImagePath = receiptImagePath;
+        this.receivedOn = receivedOn;
     }
 
     private void requireUnderReview() {
@@ -203,6 +208,27 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
             throw new BusinessRuleViolationException("CONTRIBUTION_NOT_UNDER_REVIEW",
                     "Only a contribution whose receipt did not match can be reviewed");
         }
+    }
+
+    /**
+     * Whether the contribution counts for the pot: validated at once or approved by the organizer.
+     */
+    public boolean isSettled() {
+        return status == ContributionStatus.VALIDATED || status == ContributionStatus.APPROVED;
+    }
+
+    /**
+     * Whether a settled contribution arrived by the cutoff date: the transfer by the date of its receipt and the
+     * cash by the day the organizer received it. Cash recorded before that day was stored counts by the day it
+     * was registered. A coverage is never on time for the member who owed it.
+     */
+    public boolean arrivedBy(LocalDate cutoffDate, ZoneId zone) {
+        return switch (method) {
+            case TRANSFER -> receipt != null && !receipt.paidAt().isAfter(cutoffDate);
+            case CASH -> !(receivedOn != null ? receivedOn : registeredAt.atZone(zone).toLocalDate())
+                    .isAfter(cutoffDate);
+            case COVERAGE -> false;
+        };
     }
 
     private static Contribution base(UUID cycleId, UUID periodId, UUID membershipId, @Nullable UUID accountId,

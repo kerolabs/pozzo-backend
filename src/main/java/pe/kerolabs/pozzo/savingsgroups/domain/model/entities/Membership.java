@@ -89,6 +89,25 @@ public class Membership {
         this.joinedAt = now;
     }
 
+    /**
+     * Whether this is a member registered by the organizer with that number who has not linked an account yet.
+     */
+    public boolean isUnlinkedManualMemberWith(String phone) {
+        return kind == MembershipKind.MANUAL && memberId == null && phone.equals(this.phone);
+    }
+
+    /**
+     * Links the account of a member the organizer registered without the application, who signed up with the
+     * same number. The membership keeps its id, so its contributions and turn stay with the member.
+     */
+    public void linkAccount(UUID accountId) {
+        if (kind != MembershipKind.MANUAL || memberId != null) {
+            throw new IllegalStateException("Only a member registered without the application can link an account");
+        }
+        this.memberId = accountId;
+        this.kind = MembershipKind.APP;
+    }
+
     public void markDropped() {
         this.status = MembershipStatus.DROPPED;
     }

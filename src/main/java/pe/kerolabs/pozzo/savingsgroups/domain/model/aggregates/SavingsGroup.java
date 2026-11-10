@@ -9,6 +9,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberRemovedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
@@ -233,6 +234,28 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     /**
      * Adds a member who does not use the application; the organizer records that member's contributions.
      */
+    /**
+     * Links a new account to the member the organizer registered without the application with the same number,
+     * so the member keeps the seat, the turn and the contributions recorded so far. Nothing changes when no
+     * such member is waiting or when the account already has a membership in the group.
+     *
+     * @param phone the verified number of the account in E.164 format
+     * @return the linked membership, if there was one
+     */
+    public Optional<Membership> linkManualMember(String phone, UUID accountId, Instant now) {
+        if (memberships.stream().anyMatch(membership -> membership.belongsTo(accountId))) {
+            return Optional.empty();
+        }
+        var manual = memberships.stream()
+                .filter(membership -> membership.isActive() && membership.isUnlinkedManualMemberWith(phone))
+                .findFirst();
+        manual.ifPresent(membership -> {
+            membership.linkAccount(accountId);
+            registerDomainEvent(new MemberLinkedEvent(id, membership.getId(), accountId, now));
+        });
+        return manual;
+    }
+
     public Membership addManualMember(String displayName, @Nullable String phone, Instant now) {
         requireNotStarted();
         requireFreeSeat();

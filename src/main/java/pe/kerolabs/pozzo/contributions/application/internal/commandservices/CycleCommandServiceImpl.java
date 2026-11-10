@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.contributions.application.commandservices.CycleCommandS
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
@@ -71,5 +72,15 @@ public class CycleCommandServiceImpl implements CycleCommandService {
                     var savedNext = next == null ? null : periodRepository.save(next);
                     return new PotDelivery(savedCycle, delivered, savedNext);
                 });
+    }
+
+    @Override
+    public Result<Boolean, ApplicationError> handle(LinkCycleMemberCommand command) {
+        var cycle = cycleRepository.findByGroupId(command.groupId());
+        if (cycle.isEmpty() || !cycle.get().linkAccount(command.membershipId(), command.accountId(), clock.instant())) {
+            return Result.success(false);
+        }
+        cycleRepository.save(cycle.get());
+        return Result.success(true);
     }
 }

@@ -48,6 +48,20 @@ Feature: TS03 Members and invitations service
     Then the service responds 201 Created
     And "Marta Quispe" is a member of kind "MANUAL"
 
+  Scenario: A member registered without the application links the account when signing up
+    Given "Anna Weber" has a group of 3 seats
+    And "Anna Weber" registered "Marta Quispe" without the application with a number
+    When "Marta Quispe" signs up with the number the organizer registered
+    Then "Marta Quispe" is a member of kind "APP"
+    And the group is among the groups of "Marta Quispe"
+
+  Scenario: The linked member keeps the contributions recorded before signing up
+    Given "Anna Weber" started a group with "Marta Quispe" registered without the application
+    And "Anna Weber" registers S/ 200 in cash for "Marta Quispe"
+    When "Marta Quispe" signs up with the number the organizer registered
+    Then "Marta Quispe" sees the contribution of the current period as "VALIDATED"
+    And the history of "Marta Quispe" counts 1 contribution on time
+
   Scenario: Remove a member before the group starts
     Given "Anna Weber" has a group of 3 seats where "Sofia Gonzales" joined
     When "Anna Weber" removes "Sofia Gonzales" from the group

@@ -18,6 +18,7 @@ import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -129,6 +130,18 @@ class ContributionTest {
         assertThat(contribution.getMethod()).isEqualTo(ContributionMethod.CASH);
         assertThat(contribution.getStatus()).isEqualTo(ContributionStatus.VALIDATED);
         assertThat(contribution.getReceipt()).isNull();
+    }
+
+    @Test
+    void cashArrivesOnTimeByTheDayTheOrganizerReceivedIt() {
+        var early = Contribution.inCash(cycleId, periodId, membershipId, accountId, EXPECTED,
+                LocalDate.parse("2026-10-20"), CUTOFF, organizerId, NOW);
+        var late = Contribution.inCash(cycleId, periodId, membershipId, accountId, EXPECTED,
+                LocalDate.parse("2026-10-21"), CUTOFF, organizerId, NOW);
+
+        assertThat(early.isSettled()).isTrue();
+        assertThat(early.arrivedBy(CUTOFF, ZoneId.of("America/Lima"))).isTrue();
+        assertThat(late.arrivedBy(CUTOFF, ZoneId.of("America/Lima"))).isFalse();
     }
 
     @Test

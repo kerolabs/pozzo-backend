@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.application.commandservices;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Cycle;
 import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
@@ -28,6 +29,15 @@ public interface CycleCommandService {
      * @return pot delivery result containing the cycle, delivered period, and optional next period
      */
     Result<PotDelivery, ApplicationError> handle(DeliverPotCommand command);
+
+    /**
+     * Gives the turn of a member who took part without the application to the account they signed up with.
+     * Nothing changes when the group has not started its cycle yet.
+     *
+     * @param command command with the group, the membership and the account
+     * @return true when a turn was linked
+     */
+    Result<Boolean, ApplicationError> handle(LinkCycleMemberCommand command);
 
     /**
      * What happened after a pot was delivered.

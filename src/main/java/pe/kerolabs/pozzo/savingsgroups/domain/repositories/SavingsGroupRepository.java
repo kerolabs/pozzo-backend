@@ -18,6 +18,14 @@ public interface SavingsGroupRepository {
      */
     List<SavingsGroup> findAllByMemberId(UUID memberId);
 
+    /**
+     * The groups with a member the organizer registered without the application with that number, who has not
+     * linked an account yet.
+     *
+     * @param phone the number in E.164 format
+     */
+    List<SavingsGroup> findAllWithUnlinkedManualMember(String phone);
+
     SavingsGroup save(SavingsGroup group);
 
     /**
