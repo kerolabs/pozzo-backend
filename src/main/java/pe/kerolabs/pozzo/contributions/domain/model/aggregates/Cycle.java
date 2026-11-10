@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.domain.model.aggregates;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberDroppedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleStartedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
@@ -178,6 +179,34 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
         turns.sort(Comparator.comparingInt(CycleTurn::turnNumber));
         registerDomainEvent(new TurnsSwappedEvent(id, groupId, firstMembershipId, second.turnNumber(),
                 secondMembershipId, first.turnNumber(), now));
+    }
+
+    /**
+     * Records that a member of the cycle dropped out. Their turn stays until someone replaces them.
+     */
+    public void registerDropout(UUID membershipId, Instant now) {
+        var turn = findParticipant(membershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        registerDomainEvent(new CycleMemberDroppedEvent(id, groupId, membershipId, turn.turnNumber(), now));
+    }
+
+    /**
+     * Gives the turn of a member who dropped out to their replacement, while that turn has not been collected.
+     *
+     * @param currentPotDelivered whether the pot of the turn in progress was already delivered
+     * @return the turn the replacement takes
+     */
+    public CycleTurn replaceMember(UUID droppedMembershipId, UUID replacementMembershipId, @Nullable UUID accountId,
+                                   String displayName, boolean currentPotDelivered) {
+        var dropped = findParticipant(droppedMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        if (dropped.turnNumber() < currentTurn || (dropped.turnNumber() == currentTurn && currentPotDelivered)) {
+            throw new BusinessRuleViolationException("TURN_ALREADY_COLLECTED",
+                    "The member who dropped out already collected the pot of their turn");
+        }
+        var replacement = new CycleTurn(dropped.turnNumber(), replacementMembershipId, accountId, displayName);
+        turns.set(turns.indexOf(dropped), replacement);
+        return replacement;
     }
 
     public List<CycleTurn> getTurns() {

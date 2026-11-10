@@ -8,9 +8,11 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberDroppedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberRemovedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
@@ -368,6 +370,64 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
                 turns.set(index, new TurnSlot(secondTurn, secondMembershipId, turn.assignedBy()));
             }
         }
+    }
+
+    /**
+     * Records that a member left the group after it started. The member keeps the contributions and the pot
+     * received so far; their turn waits for a replacement.
+     */
+    public Membership registerDropout(UUID membershipId, Instant now) {
+        if (status != GroupStatus.STARTED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_STARTED",
+                    "Only a member of a group in progress can drop out; before it starts, remove the member");
+        }
+        var membership = findMembership(membershipId).filter(Membership::isActive)
+                .orElseThrow(() -> new BusinessRuleViolationException("MEMBER_NOT_ACTIVE",
+                        "The member is not active in the group"));
+        if (membership.belongsTo(organizerId)) {
+            throw new BusinessRuleViolationException("ORGANIZER_CANNOT_DROP_OUT",
+                    "The organizer cannot drop out of their own group");
+        }
+        membership.markDropped();
+        registerDomainEvent(new MemberDroppedEvent(id, membershipId, membership.getMemberId(),
+                membership.getDisplayName(), now));
+        return membership;
+    }
+
+    /**
+     * Gives the seat and the turn of a member who dropped out to someone else.
+     *
+     * @param accountId the account of the replacement, or null when they do not use the application
+     * @return the membership of the replacement
+     */
+    public Membership replaceDroppedMember(UUID droppedMembershipId, @Nullable UUID accountId, String displayName,
+                                           @Nullable String phone, Instant now) {
+        if (status != GroupStatus.STARTED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_STARTED",
+                    "Only a member of a group in progress can be replaced");
+        }
+        var dropped = findMembership(droppedMembershipId).filter(Membership::isDropped)
+                .orElseThrow(() -> new BusinessRuleViolationException("MEMBER_NOT_DROPPED",
+                        "Only a member who dropped out can be replaced"));
+        var turnIndex = -1;
+        for (var index = 0; index < turns.size(); index++) {
+            if (turns.get(index).membershipId().equals(dropped.getId())) {
+                turnIndex = index;
+            }
+        }
+        if (turnIndex < 0) {
+            throw new BusinessRuleViolationException("MEMBER_ALREADY_REPLACED", "The member was already replaced");
+        }
+        if (accountId != null && memberships.stream().anyMatch(membership -> membership.belongsTo(accountId))) {
+            throw new BusinessRuleViolationException("ALREADY_A_MEMBER", "The member already belongs to the group");
+        }
+        var replacement = Membership.ofReplacement(accountId, displayName, phone, now);
+        memberships.add(replacement);
+        var turn = turns.get(turnIndex);
+        turns.set(turnIndex, new TurnSlot(turn.turnNumber(), replacement.getId(), turn.assignedBy()));
+        registerDomainEvent(new MemberReplacedEvent(id, droppedMembershipId, replacement.getId(), accountId,
+                replacement.getDisplayName(), turn.turnNumber(), now));
+        return replacement;
     }
 
     /**

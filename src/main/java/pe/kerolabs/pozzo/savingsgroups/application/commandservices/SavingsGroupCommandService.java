@@ -12,7 +12,9 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationC
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -130,4 +132,20 @@ public interface SavingsGroupCommandService {
      * @return the new group, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command);
+
+    /**
+     * Records that a member left a group in progress. Only the organizer.
+     *
+     * @param command command with the group, the organizer and the membership
+     * @return the group with the member dropped, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(RegisterDropoutCommand command);
+
+    /**
+     * Gives the seat and the turn of a member who dropped out to someone else. Only the organizer.
+     *
+     * @param command command with the group, the organizer, the dropped membership and the replacement
+     * @return the group with the replacement, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(ReplaceMemberCommand command);
 }

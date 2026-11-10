@@ -6,15 +6,19 @@ import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberDroppedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.repositories.SavingsGroupRepository;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupDeletedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupFilledIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberDroppedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberJoinedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberLinkedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberReplacedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupNewCycleOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupRulesUpdatedIntegrationEvent;
 
@@ -62,6 +66,26 @@ public class MembershipEventsHandler {
     public void on(NewCycleOpenedEvent event) {
         eventPublisher.publishEvent(new SavingsGroupNewCycleOpenedIntegrationEvent(event.groupId(),
                 event.previousGroupId(), event.groupName(), event.memberAccountIds(), event.occurredAt()));
+    }
+
+    @EventListener
+    public void on(MemberDroppedEvent event) {
+        savingsGroupRepository.findById(event.groupId()).ifPresent(group ->
+                eventPublisher.publishEvent(new SavingsGroupMemberDroppedIntegrationEvent(group.getId(),
+                        group.getName(), event.membershipId(), event.memberId(), event.displayName(),
+                        group.activeMemberships().stream()
+                                .map(Membership::getMemberId)
+                                .filter(memberId -> memberId != null && !memberId.equals(event.memberId()))
+                                .toList(),
+                        event.occurredAt())));
+    }
+
+    @EventListener
+    public void on(MemberReplacedEvent event) {
+        savingsGroupRepository.findById(event.groupId()).ifPresent(group ->
+                eventPublisher.publishEvent(new SavingsGroupMemberReplacedIntegrationEvent(group.getId(),
+                        group.getName(), event.droppedMembershipId(), event.replacementMembershipId(),
+                        event.accountId(), event.displayName(), event.turnNumber(), event.occurredAt())));
     }
 
     @EventListener

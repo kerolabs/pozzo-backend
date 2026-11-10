@@ -27,6 +27,10 @@ public interface NotificationPersistenceRepository extends JpaRepository<Notific
     List<NotificationPersistenceEntity> findAllByGroupIdAndKindAndStatus(UUID groupId, NotificationKind kind,
                                                                          NotificationStatus status);
 
+    List<NotificationPersistenceEntity> findAllByGroupIdAndAccountIdAndKindAndStatus(UUID groupId, UUID accountId,
+                                                                                     NotificationKind kind,
+                                                                                     NotificationStatus status);
+
     boolean existsByDedupKey(String dedupKey);
 
     List<NotificationPersistenceEntity> findAllByAccountIdAndStatusOrderBySentAtDesc(UUID accountId,

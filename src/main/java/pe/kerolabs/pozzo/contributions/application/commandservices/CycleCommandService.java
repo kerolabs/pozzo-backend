@@ -5,6 +5,8 @@ import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCycleDropoutCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReplaceCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -57,6 +59,22 @@ public interface CycleCommandService {
      * @return the cycle with the new order, or an error
      */
     Result<Cycle, ApplicationError> handle(SwapTurnsCommand command);
+
+    /**
+     * Records in the cycle that a member dropped out.
+     *
+     * @param command command with the group and the membership
+     * @return the cycle, or an error
+     */
+    Result<Cycle, ApplicationError> handle(RegisterCycleDropoutCommand command);
+
+    /**
+     * Gives the turn and the pending contributions of a member who dropped out to their replacement.
+     *
+     * @param command command with the group, the dropped membership and the replacement
+     * @return the cycle, or an error
+     */
+    Result<Cycle, ApplicationError> handle(ReplaceCycleMemberCommand command);
 
     /**
      * What happened after a pot was delivered.

@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.EntryKind;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberDroppedIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegrationEvent;
 
 /**
@@ -60,6 +61,17 @@ public class ContributionEventsHandler {
                     event.groupId(), event.groupName(), null, EntryKind.CYCLE_COMPLETED, event.occurredAt(),
                     "cycle-closed:" + event.cycleId() + ":" + event.accountId()));
         }
+    }
+
+    @EventListener
+    public void on(CycleMemberDroppedIntegrationEvent event) {
+        var accountId = event.member().accountId();
+        if (accountId == null) {
+            return;
+        }
+        complianceCommandService.handle(new RecordComplianceEntryCommand(accountId, event.cycleId(), event.groupId(),
+                event.groupName(), null, EntryKind.DROPOUT, event.occurredAt(),
+                "dropout:" + event.cycleId() + ":" + event.member().membershipId()));
     }
 
     @EventListener

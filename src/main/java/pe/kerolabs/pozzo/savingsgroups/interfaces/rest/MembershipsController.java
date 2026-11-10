@@ -25,7 +25,9 @@ import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetActiveInvitationQuery;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetGroupPreviewQuery;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetMembersQuery;
@@ -35,6 +37,7 @@ import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.GroupPreviewRes
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.GroupResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.InvitationResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.MembershipResource;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.ReplaceMemberResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.GroupCommandFromResourceAssembler;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.GroupPreviewResourceFromEntityAssembler;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.GroupResourceFromEntityAssembler;
@@ -213,6 +216,61 @@ public class MembershipsController {
      * @param resource payload containing manual member name and phone details
      * @return 201 Created with updated member roster
      */
+    @PostMapping("/groups/{groupId}/members/{membershipId}/dropout")
+    @Operation(summary = "Register that a member dropped out",
+            description = "Only the organizer, once the group started. The member keeps the contributions and the "
+                    + "pot received so far, the dropout goes to their compliance history and the group is told. "
+                    + "Their turn waits for a replacement.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Dropout recorded; returns the updated member list",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = MembershipResource.class)))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The group does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The group has not started, the member is not active or "
+                    + "is the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> registerDropout(@AuthenticationPrincipal AuthenticatedMember member,
+                                             @PathVariable UUID groupId,
+                                             @PathVariable UUID membershipId) {
+        var result = savingsGroupCommandService.handle(new RegisterDropoutCommand(groupId, member.accountId(),
+                membershipId));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                group -> MembershipResourceFromEntityAssembler.toResourcesFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
+                HttpStatus.OK);
+    }
+
+    @PostMapping("/groups/{groupId}/members/{membershipId}/replacement")
+    @Operation(summary = "Replace a member who dropped out",
+            description = "Only the organizer. The replacement takes the seat and the turn of the member who left, "
+                    + "and owes the contributions still pending from the current period on. With the number of a "
+                    + "Pozzo account they take it with that account; otherwise they join without the application.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Replacement added; returns the updated member list",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = MembershipResource.class)))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The group does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The member did not drop out or was already replaced, the "
+                    + "turn was already collected, or the account is already in the group",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> replaceMember(@AuthenticationPrincipal AuthenticatedMember member,
+                                           @PathVariable UUID groupId,
+                                           @PathVariable UUID membershipId,
+                                           @Valid @RequestBody ReplaceMemberResource resource) {
+        var result = savingsGroupCommandService.handle(new ReplaceMemberCommand(groupId, member.accountId(),
+                membershipId, resource.displayName(), resource.phoneNumber()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                group -> MembershipResourceFromEntityAssembler.toResourcesFromEntity(
+                        group, member.accountId(), externalIamService.fetchPhotoUrls(group)),
+                HttpStatus.CREATED);
+    }
+
     @PostMapping("/groups/{groupId}/members/manual")
     @Operation(summary = "Register a member without the application",
             description = "Only the organizer, who then records that member's contributions.")

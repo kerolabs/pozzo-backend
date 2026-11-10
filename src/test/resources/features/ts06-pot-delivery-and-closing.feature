@@ -67,3 +67,23 @@ Feature: TS06 Pot delivery and closing service
     Then the service responds 201 Created
     And "Sofia Gonzales" appears as covered in the pot
     And the history of "Sofia Gonzales" counts 1 covered contribution
+
+  Scenario: Register that a member dropped out
+    When "Anna Weber" registers that "Sofia Gonzales" dropped out
+    Then the service responds 200 OK
+    And the history of "Sofia Gonzales" counts 1 dropout
+    And "Sofia Gonzales" does not have the notice "Un integrante dejó la junta"
+
+  Scenario: Replace a member who dropped out with someone without the application
+    Given "Anna Weber" registered that "Sofia Gonzales" dropped out
+    When "Anna Weber" replaces the member who dropped out with "Rosa Medina"
+    Then the service responds 201 Created
+    And "Rosa Medina" owes the contribution of the current period
+
+  Scenario: Replace a member who dropped out with someone who uses Pozzo
+    Given "Jorge Ramos" has a Pozzo account
+    And "Anna Weber" registered that "Sofia Gonzales" dropped out
+    When "Anna Weber" replaces the member who dropped out with the number of "Jorge Ramos"
+    Then the service responds 201 Created
+    And "Jorge Ramos" is a member of kind "APP"
+    And "Jorge Ramos" has the notice "Te sumaron a una junta"

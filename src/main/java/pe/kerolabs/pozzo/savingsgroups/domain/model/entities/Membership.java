@@ -60,6 +60,23 @@ public class Membership {
         return membership;
     }
 
+    /**
+     * Creates the membership of someone who takes the seat of a member who left a started group. With an
+     * account, they use the application; without one, the organizer records their contributions.
+     */
+    public static Membership ofReplacement(@Nullable UUID memberId, String displayName, @Nullable String phone,
+                                           Instant now) {
+        var membership = memberId == null
+                ? ofManualMember(displayName, phone, now)
+                : ofAppMember(memberId, displayName, now);
+        membership.status = MembershipStatus.REPLACEMENT;
+        return membership;
+    }
+
+    public boolean isDropped() {
+        return status == MembershipStatus.DROPPED;
+    }
+
     public boolean isActive() {
         return status == MembershipStatus.ACTIVE || status == MembershipStatus.REPLACEMENT;
     }

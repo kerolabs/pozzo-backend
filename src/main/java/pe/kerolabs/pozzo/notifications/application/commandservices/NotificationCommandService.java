@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.notifications.application.commandservices;
 
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.Device;
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.ReminderPlan;
+import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelGroupRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.ConfigureReminderPlanCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.DeactivateDeviceCommand;
@@ -56,6 +57,13 @@ public interface NotificationCommandService {
      * @return number of reminder notifications cancelled, or an error
      */
     Result<Integer, ApplicationError> handle(CancelRemindersCommand command);
+
+    /**
+     * Cancels the reminders still queued for a member in a group.
+     *
+     * @return how many reminders were cancelled
+     */
+    Result<Integer, ApplicationError> handle(CancelGroupRemindersCommand command);
 
     /**
      * Queues an alert notification for the next dispatch.
