@@ -25,12 +25,14 @@ import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.savingsgroups.application.commandservices.SavingsGroupCommandService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetGroupByIdQuery;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetMyGroupsQuery;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.CreateGroupResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.DestinationResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.GroupResource;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.OpenNewCycleResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.UpdateRulesResource;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.GroupCommandFromResourceAssembler;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform.GroupResourceFromEntityAssembler;
@@ -94,6 +96,34 @@ public class SavingsGroupsController {
      * @param groupId the identifier of the savings group
      * @return 200 OK with group resource, or 404 if not found/unauthorized
      */
+    @PostMapping("/groups/{groupId}/new-cycle")
+    @Operation(summary = "Open a new cycle with the same group",
+            description = "Creates a new group, still to start, with the same name, rules, destination and active "
+                    + "members as a group whose cycle is over. The organizer can adjust it, assign the turns and "
+                    + "start it as usual. Only the organizer.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "New group created",
+                    content = @Content(schema = @Schema(implementation = GroupResource.class))),
+            @ApiResponse(responseCode = "400", description = "The first contribution date is missing",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The group does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The cycle of the group is not over, or the date is in "
+                    + "the past",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> openNewCycle(@AuthenticationPrincipal AuthenticatedMember member,
+                                          @PathVariable UUID groupId,
+                                          @Valid @RequestBody OpenNewCycleResource resource) {
+        var result = savingsGroupCommandService.handle(new OpenNewCycleCommand(groupId, member.accountId(),
+                resource.firstContributionDate()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                group -> GroupResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
+                HttpStatus.CREATED);
+    }
+
     @GetMapping("/groups/{groupId}")
     @Operation(summary = "Get a savings group", description = "Only its members can see it.")
     @ApiResponses({

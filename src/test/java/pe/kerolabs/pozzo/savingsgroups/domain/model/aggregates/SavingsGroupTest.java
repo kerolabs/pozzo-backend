@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
@@ -157,6 +158,35 @@ class SavingsGroupTest {
 
         assertThat(group.linkManualMember("+51911111111", UUID.randomUUID(), NOW)).isEmpty();
         assertThat(group.linkManualMember("+51923456789", sofia, NOW)).isEmpty();
+    }
+
+    void aClosedGroupOpensItsNextCycleWithTheSameRulesAndMembers() {
+        var marta = group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        group.join(UUID.randomUUID(), "Sofia Gonzales", NOW);
+        drawTurns();
+        group.defineDestination(yape(), NOW);
+        group.start(NOW);
+        group.close();
+
+        var next = group.openNewCycle(LocalDate.parse("2027-01-20"), NOW);
+
+        assertThat(next.getId()).isNotEqualTo(group.getId());
+        assertThat(next.getStatus()).isEqualTo(GroupStatus.DRAFT);
+        assertThat(next.getRules().firstContributionDate()).isEqualTo(LocalDate.parse("2027-01-20"));
+        assertThat(next.getRules().destination()).isEqualTo(yape());
+        assertThat(next.activeMemberships()).extracting(Membership::getDisplayName)
+                .containsExactlyInAnyOrder("Anna Weber", "Marta Quispe", "Sofia Gonzales");
+        assertThat(next.activeMemberships()).filteredOn(membership -> membership.getPhone() != null)
+                .singleElement().satisfies(membership -> assertThat(membership.getPhone()).isEqualTo(marta.getPhone()));
+        assertThat(next.hasTurns()).isFalse();
+        assertThat(next.domainEvents()).hasAtLeastOneElementOfType(NewCycleOpenedEvent.class);
+    }
+
+    @Test
+    void aGroupWhoseCycleIsNotOverCannotOpenANewOne() {
+        assertThatThrownBy(() -> group.openNewCycle(LocalDate.parse("2027-01-20"), NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("SAVINGS_GROUP_NOT_CLOSED");
     }
 
     @Test

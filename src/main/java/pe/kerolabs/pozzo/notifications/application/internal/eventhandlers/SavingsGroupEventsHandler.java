@@ -10,6 +10,7 @@ import pe.kerolabs.pozzo.notifications.domain.model.commands.SendAlertCommand;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupDeletedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupFilledIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberJoinedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupNewCycleOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupRulesUpdatedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupStartedIntegrationEvent;
 
@@ -35,6 +36,14 @@ public class SavingsGroupEventsHandler {
                         event.groupId(), null,
                         NotificationTexts.groupStarted(event.groupName(), turn.turnNumber(), event.groupId()),
                         "started:" + event.groupId() + ":" + turn.accountId())));
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(SavingsGroupNewCycleOpenedIntegrationEvent event) {
+        event.memberAccountIds().forEach(accountId -> notificationCommandService.handle(new SendAlertCommand(
+                accountId, event.groupId(), null, NotificationTexts.newCycleOpened(event.groupName(), event.groupId()),
+                "new-cycle:" + event.groupId() + ":" + accountId)));
     }
 
     @TransactionalEventListener(fallbackExecution = true)

@@ -11,11 +11,13 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.ManualMemberAddedEven
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberRemovedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnSlot;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
@@ -448,6 +450,32 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         turnMethod = null;
         drawSeed = null;
         turnsAssignedAt = null;
+    }
+
+    /**
+     * Opens the next cycle of a group whose cycle is over: a new group, still to start, with the same name,
+     * rules, destination and active members, so the organizer only reviews it, assigns the turns and starts it.
+     *
+     * @param firstContributionDate the cutoff of the first period of the new cycle
+     * @return the new group
+     */
+    public SavingsGroup openNewCycle(LocalDate firstContributionDate, Instant now) {
+        if (status != GroupStatus.CLOSED) {
+            throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_CLOSED",
+                    "A new cycle can only be opened once the group completed its cycle");
+        }
+        var organizerName = membershipOf(organizerId).map(Membership::getDisplayName).orElse(name);
+        var nextRules = new GroupRules(rules.contribution(), rules.periodicity(), rules.seats(), firstContributionDate,
+                rules.destination());
+        var next = create(organizerId, organizerName, name, nextRules, now);
+        activeMemberships().stream()
+                .filter(membership -> !membership.belongsTo(organizerId))
+                .forEach(membership -> next.memberships.add(membership.getKind() == MembershipKind.APP
+                        ? Membership.ofAppMember(membership.getMemberId(), membership.getDisplayName(), now)
+                        : Membership.ofManualMember(membership.getDisplayName(), membership.getPhone(), now)));
+        next.refreshReadiness();
+        next.registerDomainEvent(new NewCycleOpenedEvent(next.id, id, next.name, next.otherMemberAccountIds(), now));
+        return next;
     }
 
     private void refreshReadiness() {

@@ -22,6 +22,22 @@ Feature: TS06 Pot delivery and closing service
     Then the service responds 200 OK
     And the cycle is "CLOSED"
 
+  Scenario: Open a new cycle with the same group
+    Given every member paid the current period
+    And "Anna Weber" confirmed the delivery of the pot
+    And every member paid the current period
+    And "Anna Weber" confirmed the delivery of the pot
+    When "Anna Weber" opens a new cycle of the group
+    Then the service responds 201 Created
+    And the group is in status "DRAFT"
+    And "Sofia Gonzales" is a member of the group
+    And "Sofia Gonzales" has the notice "Nuevo ciclo"
+
+  Scenario: A new cycle needs the current one to be over
+    When "Anna Weber" opens a new cycle of the group
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "SAVINGS_GROUP_NOT_CLOSED"
+
   Scenario: Deliver the pot before everyone paid
     Given "Sofia Gonzales" registered a receipt of S/ 200 paid to "Anna Weber" with the operation "04581273"
     When "Anna Weber" confirms the delivery of the pot

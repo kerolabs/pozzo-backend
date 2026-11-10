@@ -11,6 +11,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
@@ -120,4 +121,13 @@ public interface SavingsGroupCommandService {
      * @return the group with the new calendar, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(ApplySwappedTurnsCommand command);
+
+    /**
+     * Opens the next cycle of a group whose cycle was over: a new group with the same rules and members.
+     * Only the organizer.
+     *
+     * @param command command with the group, the organizer and the first contribution date of the new cycle
+     * @return the new group, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command);
 }
