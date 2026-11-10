@@ -12,6 +12,7 @@ import pe.kerolabs.pozzo.notifications.application.internal.texts.NotificationTe
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.Device;
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.Notification;
 import pe.kerolabs.pozzo.notifications.domain.model.aggregates.ReminderPlan;
+import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelGroupRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.ConfigureReminderPlanCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.DeactivateDeviceCommand;
@@ -162,6 +163,17 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
     @Override
     public Result<Integer, ApplicationError> handle(CancelRemindersCommand command) {
         var reminders = notificationRepository.findScheduledRemindersByPeriodIdAndAccountId(command.periodId(),
+                command.accountId());
+        reminders.forEach(reminder -> {
+            reminder.cancel();
+            notificationRepository.save(reminder);
+        });
+        return Result.success(reminders.size());
+    }
+
+    @Override
+    public Result<Integer, ApplicationError> handle(CancelGroupRemindersCommand command) {
+        var reminders = notificationRepository.findScheduledRemindersByGroupIdAndAccountId(command.groupId(),
                 command.accountId());
         reminders.forEach(reminder -> {
             reminder.cancel();

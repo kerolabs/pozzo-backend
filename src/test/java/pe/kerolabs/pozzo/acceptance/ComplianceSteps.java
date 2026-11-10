@@ -49,6 +49,12 @@ public class ComplianceSteps {
                 .isEqualTo(onTime);
     }
 
+    @Then("the history of {string} counts {int} dropout")
+    public void theHistoryCountsDropouts(String name, int dropouts) {
+        assertThat(api.get("/api/v1/members/me/compliance", state.member(name)).<Integer>read("$.summary.dropouts"))
+                .isEqualTo(dropouts);
+    }
+
     @Then("the summary has {int} contribution on time")
     public void theSummaryHas(int onTime) {
         assertThat(state.response().<Integer>read("$.onTime")).isEqualTo(onTime);

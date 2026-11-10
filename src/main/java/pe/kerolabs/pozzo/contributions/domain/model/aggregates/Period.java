@@ -166,6 +166,19 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     /**
      * Restores the aggregate from persistence.
      */
+    /**
+     * Hands what a member who dropped out still owes in this period, and their collection if the turn is
+     * theirs, to the member who replaced them. A contribution already settled stays with who paid it.
+     */
+    public void reassignMember(UUID droppedMembershipId, UUID replacementMembershipId) {
+        expected.stream()
+                .filter(item -> item.getMembershipId().equals(droppedMembershipId) && item.isPending())
+                .forEach(item -> item.transferTo(replacementMembershipId));
+        if (payoutMembershipId.equals(droppedMembershipId)) {
+            payoutMembershipId = replacementMembershipId;
+        }
+    }
+
     public void restoreState(UUID id, UUID cycleId, int turnNumber, LocalDate opensAt, LocalDate cutoffDate,
                              UUID payoutMembershipId, List<ExpectedContribution> expected, PeriodStatus status,
                              @Nullable Instant deliveredAt, @Nullable UUID deliveredBy,

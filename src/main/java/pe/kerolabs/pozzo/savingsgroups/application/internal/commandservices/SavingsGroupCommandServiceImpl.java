@@ -16,7 +16,9 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationC
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
@@ -236,6 +238,33 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
         return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
                 .map(group -> savingsGroupRepository.save(
                         group.openNewCycle(command.firstContributionDate(), clock.instant())));
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(RegisterDropoutCommand command) {
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.registerDropout(command.membershipId(), clock.instant());
+                    return savingsGroupRepository.save(group);
+                });
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(ReplaceMemberCommand command) {
+        var phone = command.phoneNumber() == null || command.phoneNumber().isBlank()
+                ? null
+                : "+51" + command.phoneNumber().replace(" ", "");
+        // Someone who already uses Pozzo with that number takes the seat with their account.
+        var accountId = phone == null ? null : externalIamService.fetchAccountIdByPhoneNumber(phone).orElse(null);
+        var displayName = accountId == null
+                ? command.displayName()
+                : externalIamService.fetchDisplayName(accountId).orElse(command.displayName());
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.replaceDroppedMember(command.droppedMembershipId(), accountId, displayName, phone,
+                            clock.instant());
+                    return savingsGroupRepository.save(group);
+                });
     }
 
     private void expireActiveInvitations(UUID groupId) {

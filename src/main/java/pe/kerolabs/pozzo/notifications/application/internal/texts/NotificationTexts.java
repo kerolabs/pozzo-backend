@@ -51,6 +51,16 @@ public final class NotificationTexts {
                 .formatted(groupName), groupLink(groupId));
     }
 
+    public static NotificationContent memberDropped(String memberName, String groupName, UUID groupId) {
+        return content("Un integrante dejó la junta", "%s dejó %s. La cabeza puede asignar a alguien en su lugar."
+                .formatted(memberName, groupName), groupLink(groupId));
+    }
+
+    public static NotificationContent joinedAsReplacement(String groupName, int turnNumber, UUID groupId) {
+        return content("Te sumaron a una junta", "Ocupas el lugar de un integrante de %s y cobras en el turno %d."
+                .formatted(groupName, turnNumber), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));

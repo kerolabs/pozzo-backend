@@ -3,8 +3,10 @@ package pe.kerolabs.pozzo.iam.application.acl;
 import org.springframework.stereotype.Service;
 import pe.kerolabs.pozzo.iam.application.queryservices.AccountQueryService;
 import pe.kerolabs.pozzo.iam.domain.model.aggregates.Account;
+import pe.kerolabs.pozzo.iam.domain.model.queries.GetAccountByPhoneQuery;
 import pe.kerolabs.pozzo.iam.domain.model.queries.GetAccountsQuery;
 import pe.kerolabs.pozzo.iam.domain.model.queries.GetProfileQuery;
+import pe.kerolabs.pozzo.iam.domain.model.valueobjects.PhoneNumber;
 import pe.kerolabs.pozzo.iam.interfaces.acl.IamContextFacade;
 
 import java.util.Collection;
@@ -23,6 +25,19 @@ public class IamContextFacadeImpl implements IamContextFacade {
 
     public IamContextFacadeImpl(AccountQueryService accountQueryService) {
         this.accountQueryService = accountQueryService;
+    }
+
+    @Override
+    public Optional<UUID> fetchAccountIdByPhoneNumber(String phoneNumber) {
+        PhoneNumber number;
+        try {
+            number = PhoneNumber.fromE164(phoneNumber);
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+        return accountQueryService.handle(new GetAccountByPhoneQuery(number))
+                .filter(Account::isActive)
+                .map(Account::getId);
     }
 
     @Override

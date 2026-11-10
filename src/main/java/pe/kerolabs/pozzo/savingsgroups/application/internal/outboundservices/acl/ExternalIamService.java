@@ -29,6 +29,10 @@ public class ExternalIamService {
      * @param accountId the account identifier
      * @return optional display name, or empty if account not found
      */
+    public Optional<UUID> fetchAccountIdByPhoneNumber(String phoneNumber) {
+        return iamContextFacade.fetchAccountIdByPhoneNumber(phoneNumber);
+    }
+
     public Optional<String> fetchDisplayName(UUID accountId) {
         return iamContextFacade.fetchDisplayNameByAccountId(accountId);
     }

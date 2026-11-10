@@ -133,4 +133,17 @@ class PeriodTest {
         assertThat(period.hasPayoutProof()).isTrue();
         assertThat(period.getPayoutProofPath()).isEqualTo("period/transfer.png");
     }
+
+    void theReplacementOwesWhatTheMemberWhoDroppedOutStillOwed() {
+        var rosa = UUID.randomUUID();
+        period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+
+        period.reassignMember(marta, rosa);
+        period.reassignMember(sofia, UUID.randomUUID());
+
+        assertThat(period.expectedFor(rosa)).hasValueSatisfying(expected ->
+                assertThat(expected.isPending()).isTrue());
+        assertThat(period.expectedFor(marta)).isEmpty();
+        assertThat(period.expectedFor(sofia)).isPresent();
+    }
 }

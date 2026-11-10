@@ -125,6 +125,11 @@ public class ContributionSteps {
         assertThat(mine.text("$.periods[0].status")).isEqualTo(status);
     }
 
+    @Then("{string} owes the contribution of the current period")
+    public void owesTheContribution(String name) {
+        assertThat(statusInPot(name)).isIn("PENDING", "LATE");
+    }
+
     @Then("{string} appears as covered in the pot")
     public void appearsAsCovered(String name) {
         assertThat(statusInPot(name)).isEqualTo("COVERED");

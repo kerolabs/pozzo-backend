@@ -20,6 +20,9 @@ public class SavingsGroupSteps {
     /** The number the organizer gave a member registered without the application in this scenario. */
     private String manualMemberPhone;
 
+    /** The membership of the member who dropped out in this scenario. */
+    private String droppedMembershipId;
+
     public SavingsGroupSteps(PozzoApi api, ScenarioState state) {
         this.api = api;
         this.state = state;
@@ -107,6 +110,27 @@ public class SavingsGroupSteps {
         if (state.response().status() == 201) {
             state.keepGroup(organizer, state.response().text("$.id"), null);
         }
+    }
+
+    @When("{string} registers that {string} dropped out")
+    @Given("{string} registered that {string} dropped out")
+    public void registersADropout(String organizer, String name) {
+        droppedMembershipId = membershipOf(name);
+        state.keepResponse(api.post(groupPath() + "/members/" + droppedMembershipId + "/dropout",
+                state.member(organizer), null));
+    }
+
+    @When("{string} replaces the member who dropped out with {string}")
+    public void replacesWithAManualMember(String organizer, String name) {
+        state.keepResponse(api.post(groupPath() + "/members/" + droppedMembershipId + "/replacement",
+                state.member(organizer), Map.of("displayName", name)));
+    }
+
+    @When("{string} replaces the member who dropped out with the number of {string}")
+    public void replacesWithAnAccount(String organizer, String name) {
+        state.keepResponse(api.post(groupPath() + "/members/" + droppedMembershipId + "/replacement",
+                state.member(organizer), Map.of("displayName", "Otro nombre",
+                        "phoneNumber", state.member(name).phoneNumber())));
     }
 
     @When("{string} lists the groups")

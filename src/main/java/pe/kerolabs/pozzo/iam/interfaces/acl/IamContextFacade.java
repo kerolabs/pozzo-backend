@@ -20,6 +20,14 @@ public interface IamContextFacade {
     Optional<String> fetchDisplayNameByAccountId(UUID accountId);
 
     /**
+     * Finds the active account that verified a phone number.
+     *
+     * @param phoneNumber the number in E.164 format
+     * @return the account identifier, if someone signed up with that number
+     */
+    Optional<UUID> fetchAccountIdByPhoneNumber(String phoneNumber);
+
+    /**
      * Returns the profile photo of each account that has one.
      *
      * @param accountIds the account identifiers

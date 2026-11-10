@@ -118,4 +118,20 @@ class CycleTest {
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("SAME_MEMBER");
     }
+
+    void theReplacementTakesATurnThatWasNotCollected() {
+        var cycle = twoTurnCycle();
+        var first = cycle.turn(1).membershipId();
+        var second = cycle.turn(2).membershipId();
+        var rosa = UUID.randomUUID();
+
+        assertThatThrownBy(() -> cycle.replaceMember(first, UUID.randomUUID(), null, "Rosa Medina", true))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("TURN_ALREADY_COLLECTED");
+
+        var turn = cycle.replaceMember(second, rosa, null, "Rosa Medina", false);
+
+        assertThat(turn.turnNumber()).isEqualTo(2);
+        assertThat(cycle.turn(2).membershipId()).isEqualTo(rosa);
+    }
 }

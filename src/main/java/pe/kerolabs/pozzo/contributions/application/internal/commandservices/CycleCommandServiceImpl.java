@@ -10,6 +10,8 @@ import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Period;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCycleDropoutCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReplaceCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
@@ -124,6 +126,32 @@ public class CycleCommandServiceImpl implements CycleCommandService {
                     "ONLY_ORGANIZER", "Only the organizer of the group can do this"));
         }
         cycle.get().swapTurns(command.firstMembershipId(), command.secondMembershipId(), clock.instant());
+        return Result.success(cycleRepository.save(cycle.get()));
+    }
+
+    @Override
+    public Result<Cycle, ApplicationError> handle(RegisterCycleDropoutCommand command) {
+        var cycle = cycleRepository.findByGroupId(command.groupId());
+        if (cycle.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Cycle", command.groupId().toString()));
+        }
+        cycle.get().registerDropout(command.membershipId(), clock.instant());
+        return Result.success(cycleRepository.save(cycle.get()));
+    }
+
+    @Override
+    public Result<Cycle, ApplicationError> handle(ReplaceCycleMemberCommand command) {
+        var cycle = cycleRepository.findByGroupId(command.groupId());
+        if (cycle.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Cycle", command.groupId().toString()));
+        }
+        var current = periodRepository.findByCycleIdAndTurnNumber(cycle.get().getId(), cycle.get().getCurrentTurn());
+        cycle.get().replaceMember(command.droppedMembershipId(), command.replacementMembershipId(),
+                command.accountId(), command.displayName(), current.map(Period::isDelivered).orElse(false));
+        current.filter(period -> !period.isDelivered()).ifPresent(period -> {
+            period.reassignMember(command.droppedMembershipId(), command.replacementMembershipId());
+            periodRepository.save(period);
+        });
         return Result.success(cycleRepository.save(cycle.get()));
     }
 }

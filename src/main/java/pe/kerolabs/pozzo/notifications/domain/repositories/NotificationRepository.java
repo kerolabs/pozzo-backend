@@ -26,6 +26,11 @@ public interface NotificationRepository {
      */
     List<Notification> findScheduledRemindersByGroupId(UUID groupId);
 
+    /**
+     * Scheduled reminders of a member in a group.
+     */
+    List<Notification> findScheduledRemindersByGroupIdAndAccountId(UUID groupId, UUID accountId);
+
     boolean existsByDedupKey(String dedupKey);
 
     /**
