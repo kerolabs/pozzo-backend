@@ -31,7 +31,7 @@ Feature: TS04 Turns service
     And "Anna Weber" starts the group
     When "Anna Weber" swaps the turns of "Sofia Gonzales" and "Jorge Ramos"
     Then the service responds 200 OK
-    And the turns follow the order "Anna Weber", "Jorge Ramos", "Sofia Gonzales"
+    And the calendar of the group follows the order "Anna Weber", "Jorge Ramos", "Sofia Gonzales"
     And "Sofia Gonzales" has the notice "Cambió tu turno"
 
   Scenario: A turn whose period started cannot be swapped

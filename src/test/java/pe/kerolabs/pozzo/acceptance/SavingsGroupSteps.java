@@ -272,4 +272,10 @@ public class SavingsGroupSteps {
         assertThat(state.response().<List<String>>read("$.turns[*].displayName")).containsExactly(first, second, third);
         assertThat(state.response().text("$.method")).isEqualTo("AGREED");
     }
+
+    @Then("the calendar of the group follows the order {string}, {string}, {string}")
+    public void theCalendarFollowsTheOrder(String first, String second, String third) {
+        assertThat(api.get(groupPath() + "/turns", state.organizer()).<List<String>>read("$.turns[*].displayName"))
+                .containsExactly(first, second, third);
+    }
 }
