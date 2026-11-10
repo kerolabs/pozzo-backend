@@ -34,6 +34,13 @@ public final class NotificationTexts {
                 .formatted(money(amount), groupName, CUTOFF_FORMAT.format(cutoffDate)), groupLink(groupId));
     }
 
+    public static NotificationContent overdueReminder(int daysLate, String groupName, BigDecimal amount,
+                                                      LocalDate cutoffDate, UUID groupId) {
+        var lateness = daysLate == 1 ? "1 día" : "%d días".formatted(daysLate);
+        return content("Tu aporte está atrasado", "Aporta %s a %s. La fecha límite fue el %s y llevas %s de atraso."
+                .formatted(money(amount), groupName, CUTOFF_FORMAT.format(cutoffDate), lateness), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));

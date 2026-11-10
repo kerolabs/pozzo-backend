@@ -18,7 +18,8 @@ import java.util.UUID;
 /**
  * ReminderPlan aggregate root: how many days before each cutoff date the members who have not paid
  * get a reminder, and at what time. There is one per group; by default three days, one day and the
- * same day, at 9:00.
+ * same day, at 9:00. Once the cutoff passes, a member who still has not paid gets one reminder a day,
+ * at the same hour, for up to {@link #OVERDUE_DAYS} days.
  */
 @Getter
 public class ReminderPlan extends AbstractDomainAggregateRoot<ReminderPlan> {
@@ -26,6 +27,7 @@ public class ReminderPlan extends AbstractDomainAggregateRoot<ReminderPlan> {
     public static final List<Integer> DEFAULT_OFFSETS = List.of(3, 1, 0);
     public static final int DEFAULT_SEND_HOUR = 9;
     public static final int MAX_OFFSET = 30;
+    public static final int OVERDUE_DAYS = 30;
 
     private UUID id;
     private UUID groupId;
@@ -76,6 +78,22 @@ public class ReminderPlan extends AbstractDomainAggregateRoot<ReminderPlan> {
         }
         offsetsInDays.forEach(offset -> schedule.put(offset,
                 cutoffDate.minusDays(offset).atTime(LocalTime.of(sendHour, 0)).atZone(zone).toInstant()));
+        return schedule;
+    }
+
+    /**
+     * The moments the daily reminders of a late contribution go out, by days after the cutoff, in the time
+     * zone of the group. The member stops getting them as soon as the contribution is settled.
+     */
+    public Map<Integer, Instant> overdueScheduleFor(LocalDate cutoffDate, ZoneId zone) {
+        var schedule = new LinkedHashMap<Integer, Instant>();
+        if (!enabled) {
+            return schedule;
+        }
+        for (var daysLate = 1; daysLate <= OVERDUE_DAYS; daysLate++) {
+            schedule.put(daysLate,
+                    cutoffDate.plusDays(daysLate).atTime(LocalTime.of(sendHour, 0)).atZone(zone).toInstant());
+        }
         return schedule;
     }
 

@@ -19,6 +19,7 @@ import pe.kerolabs.pozzo.notifications.domain.model.commands.DispatchDueNotifica
 import pe.kerolabs.pozzo.notifications.domain.model.commands.RegisterDeviceCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.ScheduleRemindersCommand;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.SendAlertCommand;
+import pe.kerolabs.pozzo.notifications.domain.model.valueobjects.NotificationContent;
 import pe.kerolabs.pozzo.notifications.domain.repositories.DeviceRepository;
 import pe.kerolabs.pozzo.notifications.domain.repositories.NotificationRepository;
 import pe.kerolabs.pozzo.notifications.domain.repositories.ReminderPlanRepository;
@@ -116,22 +117,39 @@ public class NotificationCommandServiceImpl implements NotificationCommandServic
                 .orElseGet(() -> ReminderPlan.defaultFor(command.groupId(), now));
         var scheduled = 0;
         for (var entry : plan.scheduleFor(command.cutoffDate(), zone).entrySet()) {
-            if (entry.getValue().isBefore(now)) {
-                continue;
-            }
             var content = NotificationTexts.reminder(entry.getKey(), command.groupName(),
                     command.contributionAmount(), command.cutoffDate(), command.groupId());
-            for (var accountId : command.accountIds()) {
-                var dedupKey = "reminder:%s:%s:%d".formatted(command.periodId(), accountId, entry.getKey());
-                if (notificationRepository.existsByDedupKey(dedupKey)) {
-                    continue;
-                }
-                notificationRepository.save(Notification.reminder(accountId, command.groupId(), command.periodId(),
-                        content, dedupKey, entry.getValue()));
-                scheduled++;
-            }
+            scheduled += schedule(command, "reminder", entry.getKey(), entry.getValue(), content, now);
+        }
+        for (var entry : plan.overdueScheduleFor(command.cutoffDate(), zone).entrySet()) {
+            var content = NotificationTexts.overdueReminder(entry.getKey(), command.groupName(),
+                    command.contributionAmount(), command.cutoffDate(), command.groupId());
+            scheduled += schedule(command, "overdue", entry.getKey(), entry.getValue(), content, now);
         }
         return Result.success(scheduled);
+    }
+
+    /**
+     * Queues one reminder for every member of the command at a moment that has not passed yet.
+     *
+     * @return how many reminders were queued
+     */
+    private int schedule(ScheduleRemindersCommand command, String type, int day, Instant at,
+                         NotificationContent content, Instant now) {
+        if (at.isBefore(now)) {
+            return 0;
+        }
+        var scheduled = 0;
+        for (var accountId : command.accountIds()) {
+            var dedupKey = "%s:%s:%s:%d".formatted(type, command.periodId(), accountId, day);
+            if (notificationRepository.existsByDedupKey(dedupKey)) {
+                continue;
+            }
+            notificationRepository.save(Notification.reminder(accountId, command.groupId(), command.periodId(),
+                    content, dedupKey, at));
+            scheduled++;
+        }
+        return scheduled;
     }
 
     @Override
