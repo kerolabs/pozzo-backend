@@ -15,6 +15,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.events.InconsistencyDetected
 import pe.kerolabs.pozzo.contributions.domain.model.events.PeriodOpenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.PotCompletedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.PotDeliveredEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionMethod;
 import pe.kerolabs.pozzo.contributions.domain.repositories.ContributionRepository;
@@ -28,6 +29,8 @@ import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegr
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegrationEvent.SettledContribution;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PeriodOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PotIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.TurnsSwappedIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.TurnsSwappedIntegrationEvent.SwappedTurn;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -146,6 +149,16 @@ public class IntegrationEventsPublisher {
         return contribution.arrivedBy(period(contribution.getPeriodId()).getCutoffDate(), GROUP_ZONE)
                 ? ContributionSettledIntegrationEvent.ON_TIME
                 : ContributionSettledIntegrationEvent.LATE;
+    }
+
+    @EventListener
+    public void on(TurnsSwappedEvent event) {
+        var cycle = cycle(event.cycleId());
+        eventPublisher.publishEvent(new TurnsSwappedIntegrationEvent(cycle.getId(), cycle.getGroupId(),
+                cycle.getGroupName(), List.of(
+                        new SwappedTurn(member(cycle, event.firstMembershipId()), event.firstTurn()),
+                        new SwappedTurn(member(cycle, event.secondMembershipId()), event.secondTurn())),
+                event.occurredAt()));
     }
 
     private void publishPot(UUID periodId, UUID cycleId, String stage, Instant occurredAt) {

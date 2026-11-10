@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCo
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
 
@@ -48,6 +49,14 @@ public interface CycleCommandService {
      * @return the period with its proof, or an error
      */
     Result<Period, ApplicationError> handle(AttachPayoutProofCommand command);
+
+    /**
+     * Swaps the turns of two members whose periods have not started. Only the organizer.
+     *
+     * @param command command with the cycle, the organizer and the two memberships
+     * @return the cycle with the new order, or an error
+     */
+    Result<Cycle, ApplicationError> handle(SwapTurnsCommand command);
 
     /**
      * What happened after a pot was delivered.

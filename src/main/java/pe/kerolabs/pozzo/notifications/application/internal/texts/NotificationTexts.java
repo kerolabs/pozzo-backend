@@ -41,6 +41,11 @@ public final class NotificationTexts {
                 .formatted(money(amount), groupName, CUTOFF_FORMAT.format(cutoffDate), lateness), groupLink(groupId));
     }
 
+    public static NotificationContent turnSwapped(String groupName, int turnNumber, UUID groupId) {
+        return content("Cambió tu turno", "En %s ahora cobras en el turno %d."
+                .formatted(groupName, turnNumber), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));

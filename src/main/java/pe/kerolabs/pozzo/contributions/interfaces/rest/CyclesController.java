@@ -7,14 +7,20 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import pe.kerolabs.pozzo.contributions.application.commandservices.CycleCommandService;
 import pe.kerolabs.pozzo.contributions.application.queryservices.ContributionQueryService;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
@@ -22,6 +28,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPeriodsQuery;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.CycleResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.MyContributionsResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.PeriodStatusResource;
+import pe.kerolabs.pozzo.contributions.interfaces.rest.resources.SwapTurnsResource;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.CycleResourceFromEntityAssembler;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.MyContributionsResourceFromViewAssembler;
 import pe.kerolabs.pozzo.contributions.interfaces.rest.transform.PeriodStatusResourceFromViewAssembler;
@@ -29,6 +36,7 @@ import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.interfaces.rest.resources.ErrorResource;
 import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ErrorResponseAssembler;
+import pe.kerolabs.pozzo.shared.interfaces.rest.transform.ResponseEntityAssembler;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -47,11 +55,41 @@ public class CyclesController {
     static final ZoneId GROUP_ZONE = ZoneId.of("America/Lima");
 
     private final ContributionQueryService contributionQueryService;
+    private final CycleCommandService cycleCommandService;
     private final Clock clock;
 
-    public CyclesController(ContributionQueryService contributionQueryService, Clock clock) {
+    public CyclesController(ContributionQueryService contributionQueryService,
+                            CycleCommandService cycleCommandService, Clock clock) {
         this.contributionQueryService = contributionQueryService;
+        this.cycleCommandService = cycleCommandService;
         this.clock = clock;
+    }
+
+    @PostMapping("/cycles/{cycleId}/turns/swap")
+    @Operation(summary = "Swap two turns",
+            description = "Two members collect in each other's turn. Only the organizer, and only for turns whose "
+                    + "period has not started; both members get a notice with their new turn.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Turns swapped",
+                    content = @Content(schema = @Schema(implementation = CycleResource.class))),
+            @ApiResponse(responseCode = "400", description = "A membership is missing",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The cycle does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The same member twice, a member outside the cycle, a "
+                    + "turn whose period already started or a cycle that is over",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> swapTurns(@AuthenticationPrincipal AuthenticatedMember member,
+                                       @PathVariable UUID cycleId,
+                                       @Valid @RequestBody SwapTurnsResource resource) {
+        var result = cycleCommandService.handle(new SwapTurnsCommand(cycleId, member.accountId(),
+                resource.firstMembershipId(), resource.secondMembershipId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                cycle -> CycleResourceFromEntityAssembler.toResourceFromEntity(cycle, member.accountId()),
+                HttpStatus.OK);
     }
 
     /**

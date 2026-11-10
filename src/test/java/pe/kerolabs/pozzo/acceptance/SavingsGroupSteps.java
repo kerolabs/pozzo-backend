@@ -260,9 +260,22 @@ public class SavingsGroupSteps {
         state.keepResponse(api.post(groupPath() + "/turns/agreed", state.member(organizer), Map.of("order", order)));
     }
 
+    @When("{string} swaps the turns of {string} and {string}")
+    public void swapsTheTurns(String name, String first, String second) {
+        var cycleId = api.get(groupPath() + "/cycle", state.organizer()).text("$.id");
+        state.keepResponse(api.post("/api/v1/cycles/" + cycleId + "/turns/swap", state.member(name), Map.of(
+                "firstMembershipId", membershipOf(first), "secondMembershipId", membershipOf(second))));
+    }
+
     @Then("the turns follow the order {string}, {string}, {string}")
     public void theTurnsFollowTheOrder(String first, String second, String third) {
         assertThat(state.response().<List<String>>read("$.turns[*].displayName")).containsExactly(first, second, third);
         assertThat(state.response().text("$.method")).isEqualTo("AGREED");
+    }
+
+    @Then("the calendar of the group follows the order {string}, {string}, {string}")
+    public void theCalendarFollowsTheOrder(String first, String second, String third) {
+        assertThat(api.get(groupPath() + "/turns", state.organizer()).<List<String>>read("$.turns[*].displayName"))
+                .containsExactly(first, second, third);
     }
 }
