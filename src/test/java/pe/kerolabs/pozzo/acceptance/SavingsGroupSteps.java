@@ -99,6 +99,16 @@ public class SavingsGroupSteps {
         state.keepCycle(group.cycleId());
     }
 
+    /** Opens the next cycle and, when it is created, follows the new group in the next steps. */
+    @When("{string} opens a new cycle of the group")
+    public void opensANewCycle(String organizer) {
+        state.keepResponse(api.post(groupPath() + "/new-cycle", state.member(organizer),
+                Map.of("firstContributionDate", PozzoApi.FIRST_CUTOFF.plusMonths(3).toString())));
+        if (state.response().status() == 201) {
+            state.keepGroup(organizer, state.response().text("$.id"), null);
+        }
+    }
+
     @When("{string} lists the groups")
     public void listsTheGroups(String name) {
         state.keepResponse(api.get("/api/v1/members/me/groups", state.member(name)));

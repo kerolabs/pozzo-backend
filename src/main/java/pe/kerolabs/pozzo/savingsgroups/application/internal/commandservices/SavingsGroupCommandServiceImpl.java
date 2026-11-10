@@ -15,6 +15,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
@@ -224,6 +225,17 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
         group.get().applySwappedTurns(command.firstMembershipId(), command.firstTurn(), command.secondMembershipId(),
                 command.secondTurn());
         return Result.success(savingsGroupRepository.save(group.get()));
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command) {
+        var dateError = checkFirstContributionDate(command.firstContributionDate());
+        if (dateError != null) {
+            return Result.failure(dateError);
+        }
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> savingsGroupRepository.save(
+                        group.openNewCycle(command.firstContributionDate(), clock.instant())));
     }
 
     private void expireActiveInvitations(UUID groupId) {

@@ -46,6 +46,11 @@ public final class NotificationTexts {
                 .formatted(groupName, turnNumber), groupLink(groupId));
     }
 
+    public static NotificationContent newCycleOpened(String groupName, UUID groupId) {
+        return content("Nuevo ciclo", "%s abrió un nuevo ciclo con las mismas reglas e integrantes."
+                .formatted(groupName), groupLink(groupId));
+    }
+
     public static NotificationContent groupStarted(String groupName, int turnNumber, UUID groupId) {
         return content("La junta inició", "%s ya tiene sus turnos. Te toca cobrar en el turno %d."
                 .formatted(groupName, turnNumber), groupLink(groupId));
