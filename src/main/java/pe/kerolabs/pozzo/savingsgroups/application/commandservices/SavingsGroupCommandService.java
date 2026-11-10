@@ -9,6 +9,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCo
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
@@ -102,4 +103,12 @@ public interface SavingsGroupCommandService {
      * @return the closed savings group aggregate, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(CloseGroupCommand command);
+
+    /**
+     * Links a new account to the members the organizers registered without the application with its number.
+     *
+     * @param command command containing the account and its verified number
+     * @return how many memberships were linked
+     */
+    Result<Integer, ApplicationError> handle(LinkManualMembersCommand command);
 }

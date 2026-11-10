@@ -64,7 +64,13 @@ public class PozzoApi {
      * arrived by SMS and completes the registration.
      */
     public Member signUp(String name) {
-        var phone = newPhoneNumber();
+        return signUp(name, newPhoneNumber());
+    }
+
+    /**
+     * Creates an account with a given number, like someone the organizer already registered with it.
+     */
+    public Member signUp(String name, String phone) {
         send(HttpMethod.POST, "/api/v1/auth/codes", null, Map.of("phoneNumber", phone));
         var verification = send(HttpMethod.POST, "/api/v1/auth/codes/verify", null,
                 Map.of("phoneNumber", phone, "code", lastCodeSentTo(phone), "deviceLabel", "Pixel 8"));

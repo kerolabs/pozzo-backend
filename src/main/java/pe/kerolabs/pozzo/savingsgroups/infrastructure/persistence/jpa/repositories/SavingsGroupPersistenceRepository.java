@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipStatus;
 import pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.entities.SavingsGroupPersistenceEntity;
 
@@ -25,4 +26,12 @@ public interface SavingsGroupPersistenceRepository extends JpaRepository<Savings
             """)
     List<SavingsGroupPersistenceEntity> findAllByMember(@Param("memberId") UUID memberId,
                                                        @Param("statuses") Collection<MembershipStatus> statuses);
+
+    @Query("""
+            select distinct g from SavingsGroupPersistenceEntity g
+            join g.memberships m
+            where m.phone = :phone and m.memberId is null and m.kind = :kind
+            """)
+    List<SavingsGroupPersistenceEntity> findAllWithUnlinkedMember(@Param("phone") String phone,
+                                                                 @Param("kind") MembershipKind kind);
 }

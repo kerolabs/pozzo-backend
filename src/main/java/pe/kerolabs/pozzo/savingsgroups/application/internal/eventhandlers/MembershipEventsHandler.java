@@ -7,11 +7,13 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupDeletedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.repositories.SavingsGroupRepository;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupDeletedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupFilledIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberJoinedIntegrationEvent;
+import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupMemberLinkedIntegrationEvent;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.events.SavingsGroupRulesUpdatedIntegrationEvent;
 
 /**
@@ -46,6 +48,12 @@ public class MembershipEventsHandler {
                     group.getRules().seats(),
                     event.occurredAt()));
         });
+    }
+
+    @EventListener
+    public void on(MemberLinkedEvent event) {
+        eventPublisher.publishEvent(new SavingsGroupMemberLinkedIntegrationEvent(event.groupId(), event.membershipId(),
+                event.accountId(), event.occurredAt()));
     }
 
     @EventListener

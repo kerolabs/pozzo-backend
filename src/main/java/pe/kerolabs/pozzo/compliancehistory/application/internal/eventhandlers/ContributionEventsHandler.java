@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.EntryKind;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegrationEvent;
 
 /**
  * Anti-corruption layer: translates the events of Contributions, expressed in contributions and
@@ -28,13 +29,9 @@ public class ContributionEventsHandler {
         if (accountId == null) {
             return;
         }
-        var kind = switch (event.outcome()) {
-            case ContributionSettledIntegrationEvent.ON_TIME -> EntryKind.ON_TIME;
-            case ContributionSettledIntegrationEvent.LATE -> EntryKind.LATE;
-            default -> EntryKind.COVERED;
-        };
         complianceCommandService.handle(new RecordComplianceEntryCommand(accountId, event.cycleId(), event.groupId(),
-                event.groupName(), event.periodId(), kind, event.occurredAt(), "settled:" + event.contributionId()));
+                event.groupName(), event.periodId(), kindOf(event.outcome()), event.occurredAt(),
+                "settled:" + event.contributionId()));
     }
 
     @EventListener
@@ -48,6 +45,23 @@ public class ContributionEventsHandler {
                 "rejected:" + event.contributionId()));
     }
 
+    /**
+     * A member who took part without the application linked an account: their contributions so far and, if the
+     * cycle is over, the completed cycle become part of the history of that account. The sources are the same
+     * as for a member with the application, so nothing is recorded twice.
+     */
+    @EventListener
+    public void on(CycleMemberLinkedIntegrationEvent event) {
+        event.settled().forEach(contribution -> complianceCommandService.handle(new RecordComplianceEntryCommand(
+                event.accountId(), event.cycleId(), event.groupId(), event.groupName(), contribution.periodId(),
+                kindOf(contribution.outcome()), contribution.settledAt(), "settled:" + contribution.contributionId())));
+        if (event.cycleClosed()) {
+            complianceCommandService.handle(new RecordComplianceEntryCommand(event.accountId(), event.cycleId(),
+                    event.groupId(), event.groupName(), null, EntryKind.CYCLE_COMPLETED, event.occurredAt(),
+                    "cycle-closed:" + event.cycleId() + ":" + event.accountId()));
+        }
+    }
+
     @EventListener
     public void on(CycleClosedIntegrationEvent event) {
         event.members().stream()
@@ -56,5 +70,13 @@ public class ContributionEventsHandler {
                         member.accountId(), event.cycleId(), event.groupId(), event.groupName(), null,
                         EntryKind.CYCLE_COMPLETED, event.occurredAt(),
                         "cycle-closed:" + event.cycleId() + ":" + member.accountId())));
+    }
+
+    private static EntryKind kindOf(String outcome) {
+        return switch (outcome) {
+            case ContributionSettledIntegrationEvent.ON_TIME -> EntryKind.ON_TIME;
+            case ContributionSettledIntegrationEvent.LATE -> EntryKind.LATE;
+            default -> EntryKind.COVERED;
+        };
     }
 }

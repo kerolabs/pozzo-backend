@@ -17,6 +17,9 @@ public class SavingsGroupSteps {
     private final PozzoApi api;
     private final ScenarioState state;
 
+    /** The number the organizer gave a member registered without the application in this scenario. */
+    private String manualMemberPhone;
+
     public SavingsGroupSteps(PozzoApi api, ScenarioState state) {
         this.api = api;
         this.state = state;
@@ -182,6 +185,36 @@ public class SavingsGroupSteps {
     public void registersAManualMember(String organizer, String name, int phone) {
         state.keepResponse(api.post(groupPath() + "/members/manual", state.member(organizer),
                 Map.of("displayName", name, "phoneNumber", String.valueOf(phone))));
+    }
+
+    @Given("{string} registered {string} without the application with a number")
+    public void registeredAManualMemberWithANumber(String organizer, String name) {
+        manualMemberPhone = api.newPhoneNumber();
+        var added = api.post(groupPath() + "/members/manual", state.member(organizer),
+                Map.of("displayName", name, "phoneNumber", manualMemberPhone));
+        assertThat(added.status()).as(added.body()).isEqualTo(201);
+    }
+
+    @Given("{string} started a group with {string} registered without the application")
+    public void startedAGroupWithAManualMember(String organizer, String name) {
+        var groupId = api.createGroup(state.member(organizer), 2);
+        state.keepGroup(organizer, groupId, null);
+        registeredAManualMemberWithANumber(organizer, name);
+        api.post(groupPath() + "/turns/draw", state.member(organizer), null);
+        var started = api.post(groupPath() + "/start", state.member(organizer), null);
+        assertThat(started.status()).as(started.body()).isEqualTo(200);
+        state.keepCycle(api.get(groupPath() + "/cycle", state.member(organizer)).text("$.id"));
+    }
+
+    @When("{string} signs up with the number the organizer registered")
+    public void signsUpWithTheRegisteredNumber(String name) {
+        state.add(api.signUp(name, manualMemberPhone));
+    }
+
+    @Then("the group is among the groups of {string}")
+    public void theGroupIsAmongTheGroupsOf(String name) {
+        assertThat(api.get("/api/v1/members/me/groups", state.member(name)).<List<String>>read("$[*].id"))
+                .contains(state.groupId());
     }
 
     @Then("{string} is a member of kind {string}")

@@ -13,6 +13,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCo
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
@@ -198,6 +199,19 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
         }
         group.get().close();
         return Result.success(savingsGroupRepository.save(group.get()));
+    }
+
+    @Override
+    public Result<Integer, ApplicationError> handle(LinkManualMembersCommand command) {
+        var now = clock.instant();
+        var linked = 0;
+        for (var group : savingsGroupRepository.findAllWithUnlinkedManualMember(command.phoneNumber())) {
+            if (group.linkManualMember(command.phoneNumber(), command.accountId(), now).isPresent()) {
+                savingsGroupRepository.save(group);
+                linked++;
+            }
+        }
+        return Result.success(linked);
     }
 
     private void expireActiveInvitations(UUID groupId) {

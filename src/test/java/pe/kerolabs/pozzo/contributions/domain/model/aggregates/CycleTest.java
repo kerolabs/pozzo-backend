@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.contributions.domain.model.aggregates;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
 import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
@@ -68,5 +69,22 @@ class CycleTest {
         assertThatThrownBy(cycle::advanceToNextTurn)
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("NO_REMAINING_TURNS");
+    }
+
+    @Test
+    void aMemberWithoutTheApplicationGetsTheTurnForTheAccountTheySignedUpWith() {
+        var marta = UUID.randomUUID();
+        var cycle = Cycle.start(UUID.randomUUID(), "Junta de la familia Weber", organizer, PeriodTest.monthlyRules(),
+                List.of(new CycleTurn(1, UUID.randomUUID(), organizer, "Anna Weber"),
+                        new CycleTurn(2, UUID.randomUUID(), null, "Marta Quispe")), NOW);
+        var membership = cycle.turn(2).membershipId();
+        cycle.clearDomainEvents();
+
+        assertThat(cycle.linkAccount(membership, marta, NOW)).isTrue();
+
+        assertThat(cycle.participantOf(marta)).hasValueSatisfying(turn -> assertThat(turn.turnNumber()).isEqualTo(2));
+        assertThat(cycle.domainEvents()).singleElement().isInstanceOf(CycleMemberLinkedEvent.class);
+        assertThat(cycle.linkAccount(membership, marta, NOW)).isFalse();
+        assertThat(cycle.linkAccount(UUID.randomUUID(), marta, NOW)).isFalse();
     }
 }

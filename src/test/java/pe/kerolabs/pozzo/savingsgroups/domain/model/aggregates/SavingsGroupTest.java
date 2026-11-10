@@ -3,11 +3,12 @@ package pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupFilledEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.GroupStartedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberJoinedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
-import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
@@ -130,6 +131,32 @@ class SavingsGroupTest {
 
         assertThat(manual.getKind()).isEqualTo(MembershipKind.MANUAL);
         assertThat(group.freeSeats()).isEqualTo(1);
+    }
+
+    @Test
+    void aMemberWithoutTheApplicationLinksTheAccountSignedUpWithTheSameNumber() {
+        var manual = group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        group.clearDomainEvents();
+        var marta = UUID.randomUUID();
+
+        var linked = group.linkManualMember("+51923456789", marta, NOW);
+
+        assertThat(linked).hasValueSatisfying(membership -> {
+            assertThat(membership.getId()).isEqualTo(manual.getId());
+            assertThat(membership.getKind()).isEqualTo(MembershipKind.APP);
+        });
+        assertThat(group.isMember(marta)).isTrue();
+        assertThat(group.domainEvents()).singleElement().isInstanceOf(MemberLinkedEvent.class);
+    }
+
+    @Test
+    void nothingIsLinkedForAnotherNumberOrAnAccountAlreadyInTheGroup() {
+        group.addManualMember("Marta Quispe", "+51923456789", NOW);
+        var sofia = UUID.randomUUID();
+        group.join(sofia, "Sofia Gonzales", NOW);
+
+        assertThat(group.linkManualMember("+51911111111", UUID.randomUUID(), NOW)).isEmpty();
+        assertThat(group.linkManualMember("+51923456789", sofia, NOW)).isEmpty();
     }
 
     @Test
