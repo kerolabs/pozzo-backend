@@ -25,3 +25,24 @@ Feature: TS04 Turns service
     When "Anna Weber" draws the turns
     Then the service responds 422 Unprocessable Entity
     And the error code is "SAVINGS_GROUP_NOT_FULL"
+
+  Scenario: Swap two turns whose periods have not started
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Anna Weber" swaps the turns of "Sofia Gonzales" and "Jorge Ramos"
+    Then the service responds 200 OK
+    And the turns follow the order "Anna Weber", "Jorge Ramos", "Sofia Gonzales"
+    And "Sofia Gonzales" has the notice "Cambió tu turno"
+
+  Scenario: A turn whose period started cannot be swapped
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Anna Weber" swaps the turns of "Anna Weber" and "Jorge Ramos"
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "TURN_ALREADY_STARTED"
+
+  Scenario: Only the organizer swaps turns
+    Given "Anna Weber" sets the order "Anna Weber", "Sofia Gonzales", "Jorge Ramos"
+    And "Anna Weber" starts the group
+    When "Sofia Gonzales" swaps the turns of "Sofia Gonzales" and "Jorge Ramos"
+    Then the service responds 403 Forbidden

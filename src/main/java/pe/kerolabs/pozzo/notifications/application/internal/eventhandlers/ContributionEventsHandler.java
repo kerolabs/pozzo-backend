@@ -10,6 +10,7 @@ import pe.kerolabs.pozzo.contributions.interfaces.events.CycleClosedIntegrationE
 import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMember;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PeriodOpenedIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.PotIntegrationEvent;
+import pe.kerolabs.pozzo.contributions.interfaces.events.TurnsSwappedIntegrationEvent;
 import pe.kerolabs.pozzo.notifications.application.commandservices.NotificationCommandService;
 import pe.kerolabs.pozzo.notifications.application.internal.texts.NotificationTexts;
 import pe.kerolabs.pozzo.notifications.domain.model.commands.CancelRemindersCommand;
@@ -96,6 +97,18 @@ public class ContributionEventsHandler {
                     NotificationTexts.potDelivered(event.groupName(), event.potAmount(), event.groupId()),
                     "pot-delivered:" + event.periodId()));
         }
+    }
+
+    @TransactionalEventListener(fallbackExecution = true)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void on(TurnsSwappedIntegrationEvent event) {
+        event.swapped().stream()
+                .filter(swapped -> swapped.member().accountId() != null)
+                .forEach(swapped -> notificationCommandService.handle(new SendAlertCommand(
+                        swapped.member().accountId(), event.groupId(), null,
+                        NotificationTexts.turnSwapped(event.groupName(), swapped.turnNumber(), event.groupId()),
+                        "turn-swapped:%s:%s:%s".formatted(event.cycleId(), swapped.member().membershipId(),
+                                event.occurredAt().toEpochMilli()))));
     }
 
     @TransactionalEventListener(fallbackExecution = true)

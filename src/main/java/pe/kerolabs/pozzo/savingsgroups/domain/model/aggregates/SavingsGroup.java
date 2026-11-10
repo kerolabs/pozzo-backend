@@ -354,6 +354,21 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     }
 
     /**
+     * Gives two members the turns Contributions swapped after the group started, so the calendar of the group
+     * shows who collects in each turn.
+     */
+    public void applySwappedTurns(UUID firstMembershipId, int firstTurn, UUID secondMembershipId, int secondTurn) {
+        for (var index = 0; index < turns.size(); index++) {
+            var turn = turns.get(index);
+            if (turn.membershipId().equals(firstMembershipId)) {
+                turns.set(index, new TurnSlot(firstTurn, firstMembershipId, turn.assignedBy()));
+            } else if (turn.membershipId().equals(secondMembershipId)) {
+                turns.set(index, new TurnSlot(secondTurn, secondMembershipId, turn.assignedBy()));
+            }
+        }
+    }
+
+    /**
      * Returns the cutoff date of a turn.
      */
     public LocalDate cutoffDateOfTurn(int turnNumber) {

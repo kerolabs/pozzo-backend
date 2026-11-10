@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ApplySwappedTurnsCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
@@ -212,6 +213,17 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
             }
         }
         return Result.success(linked);
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(ApplySwappedTurnsCommand command) {
+        var group = savingsGroupRepository.findById(command.groupId());
+        if (group.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("SavingsGroup", command.groupId().toString()));
+        }
+        group.get().applySwappedTurns(command.firstMembershipId(), command.firstTurn(), command.secondMembershipId(),
+                command.secondTurn());
+        return Result.success(savingsGroupRepository.save(group.get()));
     }
 
     private void expireActiveInvitations(UUID groupId) {

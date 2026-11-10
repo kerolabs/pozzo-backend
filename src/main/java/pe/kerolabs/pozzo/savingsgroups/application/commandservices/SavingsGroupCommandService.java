@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.savingsgroups.application.commandservices;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ApplySwappedTurnsCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
@@ -111,4 +112,12 @@ public interface SavingsGroupCommandService {
      * @return how many memberships were linked
      */
     Result<Integer, ApplicationError> handle(LinkManualMembersCommand command);
+
+    /**
+     * Updates the calendar of a started group after Contributions swapped two turns.
+     *
+     * @param command command with the group and the two members with their new turns
+     * @return the group with the new calendar, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(ApplySwappedTurnsCommand command);
 }

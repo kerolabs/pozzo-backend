@@ -11,6 +11,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachPayoutProofCo
 import pe.kerolabs.pozzo.contributions.domain.model.commands.DeliverPotCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.LinkCycleMemberCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.StartCycleCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.SwapTurnsCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.contributions.domain.repositories.CycleRepository;
@@ -109,5 +110,20 @@ public class CycleCommandServiceImpl implements CycleCommandService {
                             command.contentType()));
                     return Result.success(periodRepository.save(period));
                 });
+    }
+
+    @Override
+    public Result<Cycle, ApplicationError> handle(SwapTurnsCommand command) {
+        var cycle = cycleRepository.findById(command.cycleId())
+                .filter(found -> found.isParticipant(command.requesterAccountId()));
+        if (cycle.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Cycle", command.cycleId().toString()));
+        }
+        if (!cycle.get().isOrganizer(command.requesterAccountId())) {
+            return Result.failure(ApplicationError.forbidden(
+                    "ONLY_ORGANIZER", "Only the organizer of the group can do this"));
+        }
+        cycle.get().swapTurns(command.firstMembershipId(), command.secondMembershipId(), clock.instant());
+        return Result.success(cycleRepository.save(cycle.get()));
     }
 }

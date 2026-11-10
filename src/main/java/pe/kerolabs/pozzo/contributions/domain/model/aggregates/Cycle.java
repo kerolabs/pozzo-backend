@@ -5,6 +5,7 @@ import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberLinkedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleStartedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.TurnsSwappedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleRules;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.CycleTurn;
@@ -149,6 +150,34 @@ public class Cycle extends AbstractDomainAggregateRoot<Cycle> {
 
     public boolean isClosed() {
         return status == CycleStatus.CLOSED;
+    }
+
+    /**
+     * Swaps the turns of two members whose periods have not started yet. The organizer does it when two
+     * members agree to collect in each other's turn.
+     */
+    public void swapTurns(UUID firstMembershipId, UUID secondMembershipId, Instant now) {
+        if (status != CycleStatus.ACTIVE) {
+            throw new BusinessRuleViolationException("CYCLE_CLOSED", "The cycle is over");
+        }
+        if (firstMembershipId.equals(secondMembershipId)) {
+            throw new BusinessRuleViolationException("SAME_MEMBER", "Choose two different members");
+        }
+        var first = findParticipant(firstMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        var second = findParticipant(secondMembershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "MEMBER_NOT_IN_CYCLE", "The member does not take part in the cycle"));
+        if (first.turnNumber() <= currentTurn || second.turnNumber() <= currentTurn) {
+            throw new BusinessRuleViolationException("TURN_ALREADY_STARTED",
+                    "Only turns whose period has not started can be swapped");
+        }
+        turns.set(turns.indexOf(first), new CycleTurn(second.turnNumber(), first.membershipId(), first.accountId(),
+                first.displayName()));
+        turns.set(turns.indexOf(second), new CycleTurn(first.turnNumber(), second.membershipId(),
+                second.accountId(), second.displayName()));
+        turns.sort(Comparator.comparingInt(CycleTurn::turnNumber));
+        registerDomainEvent(new TurnsSwappedEvent(id, groupId, firstMembershipId, second.turnNumber(),
+                secondMembershipId, first.turnNumber(), now));
     }
 
     public List<CycleTurn> getTurns() {
