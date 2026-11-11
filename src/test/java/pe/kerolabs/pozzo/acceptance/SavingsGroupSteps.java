@@ -149,7 +149,11 @@ public class SavingsGroupSteps {
 
     @When("{string} starts the group")
     public void startsTheGroup(String organizer) {
-        state.keepResponse(api.post(groupPath() + "/start", state.member(organizer), null));
+        var started = api.post(groupPath() + "/start", state.member(organizer), null);
+        state.keepResponse(started);
+        if (started.status() == 200) {
+            state.keepCycle(api.get(groupPath() + "/cycle", state.member(organizer)).text("$.id"));
+        }
     }
 
     @Then("the cycle of the group is open on turn {int}")
