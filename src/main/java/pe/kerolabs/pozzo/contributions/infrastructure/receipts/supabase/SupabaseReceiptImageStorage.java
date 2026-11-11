@@ -60,7 +60,8 @@ public class SupabaseReceiptImageStorage implements ReceiptImageStorage {
         var path = "%s/%s.%s".formatted(contributionId, UUID.randomUUID(), extensionOf(contentType));
         try {
             restClient.post()
-                    .uri("/object/{bucket}/{path}", bucket, path)
+                    // The path goes into the URI as it is: a URI variable would encode its slash, see link().
+                    .uri("/object/{bucket}/" + path, bucket)
                     .contentType(MediaType.parseMediaType(contentType))
                     .body(content)
                     .retrieve()
@@ -76,7 +77,9 @@ public class SupabaseReceiptImageStorage implements ReceiptImageStorage {
         requireConfigured();
         try {
             var signed = restClient.post()
-                    .uri("/object/sign/{bucket}/{path}", bucket, path)
+                    // As a URI variable the slash of the path went as %2F: Supabase signed that literal key, which
+                    // does not match the object, and every link answered "Invalid signature".
+                    .uri("/object/sign/{bucket}/" + path, bucket)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("expiresIn", validity.toSeconds()))
                     .retrieve()
