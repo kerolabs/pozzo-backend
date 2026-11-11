@@ -27,7 +27,9 @@ public class PeriodStatusResourceFromViewAssembler {
         var cycle = view.cycle();
         var period = view.period();
         var me = cycle.participantOf(requesterAccountId).map(CycleTurn::membershipId).orElse(null);
+        // A replacement who joined after the period owes nothing in it, so only the members it expected appear.
         var members = cycle.getTurns().stream()
+                .filter(turn -> period.expectedFor(turn.membershipId()).isPresent())
                 .map(turn -> new PeriodStatusResource.MemberStatus(
                         turn.membershipId(),
                         turn.displayName(),
@@ -58,7 +60,7 @@ public class PeriodStatusResourceFromViewAssembler {
                 period.potAmount().minus(collected).amount(),
                 period.settledCount(),
                 cycle.totalTurns(),
-                me == null ? PENDING : statusOf(view, me, today),
+                me == null || period.expectedFor(me).isEmpty() ? PENDING : statusOf(view, me, today),
                 period.getDeliveredAt(),
                 period.hasPayoutProof(),
                 period.payoutAmount().amount(),
