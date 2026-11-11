@@ -15,9 +15,11 @@ import java.util.UUID;
  */
 public class MyContributionsResourceFromViewAssembler {
 
-    public static MyContributionsResource toResourceFromViews(Cycle cycle, List<PeriodView> views,
+    public static MyContributionsResource toResourceFromViews(Cycle cycle, List<PeriodView> allViews,
                                                               UUID requesterAccountId, LocalDate today) {
         var membershipId = cycle.participantOf(requesterAccountId).orElseThrow().membershipId();
+        // A replacement owes nothing in the periods opened before they joined.
+        var views = allViews.stream().filter(view -> view.period().expectedFor(membershipId).isPresent()).toList();
         var currency = cycle.getRules().contribution().currency();
         var contributed = Money.zero(currency);
         var pending = Money.zero(currency);
