@@ -195,13 +195,22 @@ public class ContributionSteps {
 
     // TS06: delivery of the pot and closing
 
+    /** Each pending member pays in cash what they owe in the period, which an auction may have lowered. */
     @Given("every member paid the current period")
     public void everyMemberPaid() {
-        List<String> pending = currentPeriod().read("$.members[?(@.status == 'PENDING')].displayName");
-        pending.forEach(name -> {
-            registersCash(state.organizer().name(), 200, name);
-            assertThat(state.response().status()).isEqualTo(201);
+        List<Map<String, Object>> pending = currentPeriod().read("$.members[?(@.status == 'PENDING')]");
+        pending.forEach(member -> {
+            state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/contributions/cash",
+                    state.organizer(), Map.of("membershipId", member.get("membershipId"), "amount", member.get("amount"),
+                            "receivedOn", LocalDate.now().toString())));
+            assertThat(state.response().status()).as(state.response().body()).isEqualTo(201);
         });
+    }
+
+    @Then("{string} owes S\\/ {int} in the current period")
+    public void owesInTheCurrentPeriod(String name, int amount) {
+        List<Double> amounts = currentPeriod().read("$.members[?(@.displayName == '" + name + "')].amount");
+        assertThat(amounts).containsExactly((double) amount);
     }
 
     @When("{string} confirms the delivery of the pot")

@@ -49,6 +49,8 @@ public record PeriodStatusResource(
             @Schema(description = "True for the requester") boolean me,
             @Schema(description = "True for the member who collects in this period") boolean collects,
             @Schema(description = "VALIDATED, IN_REVIEW, PENDING, LATE or COVERED", example = "VALIDATED") String status,
-            @Schema(description = "The contribution behind the state, if any", nullable = true) UUID contributionId) {
+            @Schema(description = "The contribution behind the state, if any", nullable = true) UUID contributionId,
+            @Schema(description = "What the member owes in this period: the contribution, less the credit of an auction",
+                    example = "85.00") BigDecimal amount) {
     }
 }

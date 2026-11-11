@@ -34,7 +34,10 @@ public class PeriodStatusResourceFromViewAssembler {
                         turn.membershipId().equals(me),
                         turn.membershipId().equals(period.getPayoutMembershipId()),
                         statusOf(view, turn.membershipId(), today),
-                        contributionBehind(view, turn.membershipId())))
+                        contributionBehind(view, turn.membershipId()),
+                        period.expectedFor(turn.membershipId())
+                                .map(expected -> expected.getAmount().amount())
+                                .orElse(cycle.getRules().contribution().amount())))
                 .toList();
         var collected = period.collected();
         return new PeriodStatusResource(

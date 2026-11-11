@@ -62,6 +62,17 @@ Feature: TS04 Turns service
     And "Sofia Gonzales" wins the turn by "BID" and receives S/ 550
     And "Jorge Ramos" has the notice "Subasta cerrada"
 
+  Scenario: The members still to collect owe less in the next period
+    Given "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
+    And "Anna Weber" starts the group
+    And "Sofia Gonzales" bids S/ 50 for the turn
+    And "Anna Weber" closes the auction of the turn
+    And every member paid the current period
+    And "Anna Weber" confirmed the delivery of the pot
+    Then "Jorge Ramos" owes S/ 175 in the current period
+    And "Anna Weber" owes S/ 175 in the current period
+    And "Sofia Gonzales" owes S/ 200 in the current period
+
   Scenario: A bid below the minimum
     Given "Anna Weber" auctions the turns with a minimum bid of S/ 20 and a draw when nobody bids
     And "Anna Weber" starts the group
