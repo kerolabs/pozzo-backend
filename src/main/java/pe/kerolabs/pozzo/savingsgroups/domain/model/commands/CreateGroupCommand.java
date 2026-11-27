@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.savingsgroups.domain.model.commands;
 
 import org.jspecify.annotations.Nullable;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.PaymentMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Periodicity;
 
@@ -13,5 +14,5 @@ import java.util.UUID;
  */
 public record CreateGroupCommand(UUID organizerId, String name, BigDecimal contributionAmount, Periodicity periodicity, int seats,
                                  LocalDate firstContributionDate, @Nullable PaymentMethod destinationMethod,
-                                 @Nullable String destinationPhoneNumber) {
+                                 @Nullable String destinationPhoneNumber, GroupPlan plan) {
 }

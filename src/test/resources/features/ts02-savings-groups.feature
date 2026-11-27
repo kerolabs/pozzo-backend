@@ -22,6 +22,23 @@ Feature: TS02 Savings groups service
       | 1     |
       | 51    |
 
+  Scenario: The free plan allows up to six members
+    When "Anna Weber" creates a group on the free plan with 8 seats
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "FREE_PLAN_SEATS_EXCEEDED"
+
+  Scenario: The free plan covers one active group per organizer
+    Given "Anna Weber" has a group on the free plan
+    When "Anna Weber" creates a group on the free plan with 4 seats
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "FREE_PLAN_IN_USE"
+
+  Scenario: Activate the paid plan of a group
+    Given "Anna Weber" has a group on the free plan
+    When "Anna Weber" activates the paid plan of the group
+    Then the service responds 200 OK
+    And the group is on the "PAID" plan
+
   Scenario: List the groups of the member
     Given "Sofia Gonzales" has a Pozzo account
     And "Anna Weber" started a group with "Sofia Gonzales"

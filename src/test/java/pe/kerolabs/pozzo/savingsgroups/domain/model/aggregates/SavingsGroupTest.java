@@ -12,7 +12,10 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberLinkedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.MemberReplacedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.NewCycleOpenedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionFallback;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
@@ -53,7 +56,8 @@ class SavingsGroupTest {
 
     @BeforeEach
     void createGroupOfThree() {
-        group = SavingsGroup.create(anna, "Anna Weber", "Junta de la familia Weber", rules(3, null), NOW);
+        group = SavingsGroup.create(anna, "Anna Weber", "Junta de la familia Weber", rules(3, null), GroupPlan.FREE,
+                NOW);
     }
 
     private void fill() {
@@ -292,5 +296,56 @@ class SavingsGroupTest {
         assertThatThrownBy(() -> group.registerDropout(organizer.getId(), NOW))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("ORGANIZER_CANNOT_DROP_OUT");
+    }
+
+    @Test
+    void theFreePlanAllowsUpToSixMembers() {
+        assertThatThrownBy(() -> SavingsGroup.create(anna, "Anna Weber", "Junta grande", rules(7, null),
+                GroupPlan.FREE, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("FREE_PLAN_SEATS_EXCEEDED");
+        assertThatThrownBy(() -> group.updateRules("Junta de la familia Weber", rules(7, null), NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("FREE_PLAN_SEATS_EXCEEDED");
+
+        assertThat(SavingsGroup.create(anna, "Anna Weber", "Junta grande", rules(12, null), GroupPlan.PAID, NOW)
+                .getRules().seats()).isEqualTo(12);
+    }
+
+    @Test
+    void theAuctionOfTheTurnsNeedsThePaidPlan() {
+        fill();
+        var auction = new AuctionRules(2, Money.soles(new BigDecimal("20")), AuctionFallback.DRAW);
+
+        assertThatThrownBy(() -> group.assignTurnsByAuction(auction, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("AUCTION_REQUIRES_PAID_PLAN");
+
+        group.activatePaidPlan();
+        group.assignTurnsByAuction(auction, NOW);
+
+        assertThat(group.getPlan()).isEqualTo(GroupPlan.PAID);
+        assertThat(group.getTurnMethod()).isEqualTo(TurnMethod.AUCTION);
+    }
+
+    @Test
+    void aFreeGroupTakesTheOrganizersFreeSlotUntilItCloses() {
+        assertThat(group.usesFreePlanSlot()).isTrue();
+
+        group.activatePaidPlan();
+
+        assertThat(group.usesFreePlanSlot()).isFalse();
+    }
+
+    @Test
+    void thePlanCannotChangeOnceTheGroupStarted() {
+        fill();
+        drawTurns();
+        group.defineDestination(yape(), NOW);
+        group.start(NOW);
+
+        assertThatThrownBy(group::activatePaidPlan)
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("SAVINGS_GROUP_ALREADY_STARTED");
     }
 }

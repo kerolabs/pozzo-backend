@@ -11,6 +11,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.GenerateInvitationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.JoinGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.LinkManualMembersCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ActivatePaidPlanCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RegisterDropoutCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.RemoveMemberCommand;
@@ -132,6 +133,15 @@ public interface SavingsGroupCommandService {
      * @return the new group, or an error
      */
     Result<SavingsGroup, ApplicationError> handle(OpenNewCycleCommand command);
+
+    /**
+     * Moves a group that has not started to the paid plan. There is no real charge: it is a demonstration of
+     * the business model. Only the organizer.
+     *
+     * @param command command with the group and the organizer
+     * @return the group in the paid plan, or an error
+     */
+    Result<SavingsGroup, ApplicationError> handle(ActivatePaidPlanCommand command);
 
     /**
      * Records that a member left a group in progress. Only the organizer.
