@@ -4,6 +4,8 @@ import lombok.Getter;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.entities.ComplianceEntry;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.events.HistoryUpdatedEvent;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.ComplianceSummary;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.EntryKind;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.GroupCompliance;
 import pe.kerolabs.pozzo.compliancehistory.domain.services.ComplianceScoringService;
 import pe.kerolabs.pozzo.shared.domain.model.aggregates.AbstractDomainAggregateRoot;
 
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * MemberRecord aggregate root: the compliance history of a member across every savings group.
@@ -56,6 +59,26 @@ public class MemberRecord extends AbstractDomainAggregateRoot<MemberRecord> {
 
     public List<ComplianceEntry> getEntries() {
         return Collections.unmodifiableList(entries);
+    }
+
+    /**
+     * The compliance in each group the member has facts in, in no particular order.
+     */
+    public List<GroupCompliance> groups() {
+        var byGroup = entries.stream().collect(Collectors.groupingBy(ComplianceEntry::getGroupId));
+        return byGroup.entrySet().stream().map(group -> groupCompliance(group.getKey(), group.getValue())).toList();
+    }
+
+    private static GroupCompliance groupCompliance(UUID groupId, List<ComplianceEntry> entries) {
+        var occurred = entries.stream().map(ComplianceEntry::getOccurredAt).toList();
+        return new GroupCompliance(groupId, entries.getFirst().getGroupName(),
+                entries.stream().anyMatch(entry -> entry.getKind() == EntryKind.CYCLE_COMPLETED),
+                count(entries, EntryKind.ON_TIME), count(entries, EntryKind.LATE), count(entries, EntryKind.COVERED),
+                Collections.min(occurred), Collections.max(occurred));
+    }
+
+    private static int count(List<ComplianceEntry> entries, EntryKind kind) {
+        return (int) entries.stream().filter(entry -> entry.getKind() == kind).count();
     }
 
     /**
