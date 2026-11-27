@@ -139,6 +139,29 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     }
 
     /**
+     * Takes back a contribution the organizer had approved: the member owes the period again, and a pot that
+     * was complete is not any more. Not once the pot was delivered.
+     */
+    public void unsettle(UUID membershipId, UUID contributionId) {
+        requireNotDelivered();
+        var item = expectedFor(membershipId).orElseThrow(() -> new BusinessRuleViolationException(
+                "NOT_A_CYCLE_MEMBER", "The member does not take part in this cycle"));
+        item.unsettle(contributionId);
+        if (status == PeriodStatus.POT_COMPLETE) {
+            status = PeriodStatus.OPEN;
+        }
+    }
+
+    /**
+     * Fails once the pot of the period was delivered: what was decided before can no longer change.
+     */
+    public void requireNotDelivered() {
+        if (status == PeriodStatus.DELIVERED) {
+            throw new BusinessRuleViolationException("POT_ALREADY_DELIVERED", "The pot of this period was delivered");
+        }
+    }
+
+    /**
      * Confirms that the organizer handed the pot to the member who collects in this turn.
      * Pozzo never moves the money: it only records the confirmation.
      */

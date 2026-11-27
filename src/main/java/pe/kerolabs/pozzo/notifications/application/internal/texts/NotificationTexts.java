@@ -101,6 +101,12 @@ public final class NotificationTexts {
                 .formatted(groupName), groupLink(groupId));
     }
 
+    public static NotificationContent reviewReopened(String groupName, UUID groupId) {
+        return content("Tu aporte vuelve a revisión",
+                "El organizador de %s volvió a revisar tu aporte. Te avisaremos cuando decida.".formatted(groupName),
+                groupLink(groupId));
+    }
+
     public static NotificationContent potCompleted(String groupName, int turnNumber, BigDecimal potAmount,
                                                    String payoutName, UUID groupId) {
         return content("Pozo completo", "%s juntó %s del turno %d. Entrégaselo a %s."

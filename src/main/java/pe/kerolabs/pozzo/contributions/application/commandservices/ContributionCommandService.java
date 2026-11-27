@@ -4,6 +4,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.aggregates.Contribution;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReopenReviewCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ReviewContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
@@ -54,6 +55,15 @@ public interface ContributionCommandService {
      * @return the updated contribution aggregate, or an error
      */
     Result<Contribution, ApplicationError> handle(ReviewContributionCommand command);
+
+    /**
+     * Takes back the approval or the rejection of a contribution while the pot of its period is not delivered;
+     * the contribution waits for review again. Only the organizer.
+     *
+     * @param command command with the contribution and the organizer
+     * @return the contribution, back under review, or an error
+     */
+    Result<Contribution, ApplicationError> handle(ReopenReviewCommand command);
 
     /**
      * Stores and attaches the binary image of the payment receipt to a contribution.

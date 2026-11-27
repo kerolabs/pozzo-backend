@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionCoveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionRejectedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionReviewReopenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionValidatedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.InconsistencyDetectedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionMethod;
@@ -48,7 +49,7 @@ class ContributionTest {
 
     private Contribution register(PaymentReceipt receipt) {
         return Contribution.fromReceipt(cycleId, periodId, membershipId, accountId, receipt, EXPECTED, CUTOFF,
-                "Anna Weber", NOW);
+                "Anna Weber", null, NOW);
     }
 
     @Test
@@ -157,7 +158,7 @@ class ContributionTest {
     @Test
     void aContributionUnderReviewCannotBeShared() {
         var contribution = Contribution.fromReceipt(cycleId, periodId, membershipId, accountId,
-                receipt("150", "Anna Weber", "2026-10-10"), EXPECTED, CUTOFF, "Anna Weber", NOW);
+                receipt("150", "Anna Weber", "2026-10-10"), EXPECTED, CUTOFF, "Anna Weber", null, NOW);
 
         assertThatThrownBy(contribution::shareVerifiably)
                 .isInstanceOf(BusinessRuleViolationException.class)
@@ -196,5 +197,58 @@ class ContributionTest {
         assertThatThrownBy(() -> cash.attachReceiptImage("receipts/two.jpg"))
                 .isInstanceOf(BusinessRuleViolationException.class)
                 .extracting("code").isEqualTo("RECEIPT_IMAGE_NOT_ALLOWED");
+    }
+
+    @Test
+    void aReceiptTheMemberChangedAfterItWasReadGoesToReview() {
+        var read = receipt("150", "Anna Weber", "2026-10-08");
+        var written = receipt("200", "Anna Weber", "2026-10-08");
+
+        var contribution = Contribution.fromReceipt(cycleId, periodId, membershipId, accountId, written, EXPECTED,
+                CUTOFF, "Anna Weber", read, NOW);
+
+        assertThat(contribution.getStatus()).isEqualTo(ContributionStatus.INCONSISTENT);
+        assertThat(contribution.getInconsistencies()).containsExactly(
+                new Inconsistency(Inconsistency.EDITED_AMOUNT, "S/ 150.00", "S/ 200.00"));
+    }
+
+    @Test
+    void aReceiptRegisteredAsItWasReadIsValidatedAtOnce() {
+        var read = receipt("200", "anna weber ", "2026-10-08");
+
+        var contribution = Contribution.fromReceipt(cycleId, periodId, membershipId, accountId,
+                receipt("200.00", "Anna Weber", "2026-10-08"), EXPECTED, CUTOFF, "Anna Weber", read, NOW);
+
+        assertThat(contribution.getStatus()).isEqualTo(ContributionStatus.VALIDATED);
+    }
+
+    @Test
+    void theOrganizerCanTakeBackAnApprovalOrARejection() {
+        var contribution = register(receipt("150", "Anna Weber", "2026-10-08"));
+        contribution.approve(organizerId, null, CUTOFF, NOW);
+        contribution.clearDomainEvents();
+
+        var previous = contribution.reopenReview(organizerId, NOW);
+
+        assertThat(previous).isEqualTo(ReviewDecision.APPROVE);
+        assertThat(contribution.isUnderReview()).isTrue();
+        assertThat(contribution.getReview()).isNull();
+        assertThat(contribution.domainEvents()).singleElement().isInstanceOf(ContributionReviewReopenedEvent.class);
+
+        contribution.reject(organizerId, "No es el monto", NOW);
+        assertThat(contribution.reopenReview(organizerId, NOW)).isEqualTo(ReviewDecision.REJECT);
+    }
+
+    @Test
+    void onlyAReviewedContributionCanBeReviewedAgain() {
+        var validated = register(receipt("200", "Anna Weber", "2026-10-08"));
+        var underReview = register(receipt("150", "Anna Weber", "2026-10-08"));
+
+        assertThatThrownBy(() -> validated.reopenReview(organizerId, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("CONTRIBUTION_NOT_REVIEWED");
+        assertThatThrownBy(() -> underReview.reopenReview(organizerId, NOW))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("CONTRIBUTION_NOT_REVIEWED");
     }
 }

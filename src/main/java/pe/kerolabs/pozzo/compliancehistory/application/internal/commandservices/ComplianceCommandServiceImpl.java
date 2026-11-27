@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.compliancehistory.application.commandservices.Complianc
 import pe.kerolabs.pozzo.compliancehistory.domain.model.aggregates.MemberRecord;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.aggregates.ShareLink;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.RecordComplianceEntryCommand;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.WithdrawComplianceEntriesCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.RevokeShareLinkCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.ShareHistoryCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.entities.ComplianceEntry;
@@ -51,6 +52,18 @@ public class ComplianceCommandServiceImpl implements ComplianceCommandService {
         record.record(ComplianceEntry.of(command.cycleId(), command.groupId(), command.groupName(), command.periodId(),
                 command.kind(), command.occurredAt(), command.sourceEventId()), scoringService, now);
         return Result.success(memberRecordRepository.save(record));
+    }
+
+    @Override
+    public Result<MemberRecord, ApplicationError> handle(WithdrawComplianceEntriesCommand command) {
+        var record = memberRecordRepository.findByAccountId(command.accountId());
+        if (record.isEmpty()) {
+            return Result.success(MemberRecord.forMember(command.accountId(), clock.instant()));
+        }
+        if (!record.get().withdraw(command.sourceEventIds(), scoringService, clock.instant())) {
+            return Result.success(record.get());
+        }
+        return Result.success(memberRecordRepository.save(record.get()));
     }
 
     @Override

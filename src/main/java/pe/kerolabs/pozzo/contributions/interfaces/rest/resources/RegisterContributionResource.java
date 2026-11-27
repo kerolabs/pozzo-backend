@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.contributions.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -42,5 +43,17 @@ public record RegisterContributionResource(
 
         @Schema(description = "Application that issued the receipt", example = "YAPE")
         @NotNull
-        ReceiptSource source) {
+        ReceiptSource source,
+        @Schema(description = "What the application read from the receipt before the member could change it; any "
+                + "difference sends the contribution to the organizer's review", nullable = true)
+        @Valid
+        ReadReceiptResource readByApp) {
+
+    @Schema(name = "ReadReceipt", description = "Data the application read from the receipt")
+    public record ReadReceiptResource(
+            @NotBlank @Size(max = 40) String operationNumber,
+            @NotBlank @Size(max = 120) String payeeName,
+            @NotNull @DecimalMin("0.01") @Digits(integer = 10, fraction = 2) BigDecimal amount,
+            @NotNull LocalDate paidAt) {
+    }
 }

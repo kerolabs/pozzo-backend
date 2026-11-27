@@ -44,6 +44,20 @@ Feature: TS05 Contributions and receipts service
     And the contribution is in status "REJECTED"
     And "Sofia Gonzales" can register a receipt of S/ 200 paid to "Anna Weber" with the operation "05230918"
 
+  Scenario: Take back the approval of a contribution
+    Given "Sofia Gonzales" registered a receipt of S/ 150 paid to "Anna Weber" with the operation "04581273"
+    And "Anna Weber" approved the contribution of "Sofia Gonzales"
+    When "Anna Weber" reviews the contribution of "Sofia Gonzales" again
+    Then the service responds 200 OK
+    And the contribution is in status "INCONSISTENT"
+    And "Sofia Gonzales" no longer appears as paid in the pot
+    And the organizer sees no contribution reviewed in the period
+
+  Scenario: A receipt corrected by hand goes to review
+    When "Sofia Gonzales" registers a receipt of S/ 200 paid to "Anna Weber" that the application read as S/ 150
+    Then the service responds 201 Created
+    And the contribution is in status "INCONSISTENT"
+
   Scenario: Register a cash contribution
     When "Anna Weber" registers S/ 200 in cash for "Sofia Gonzales"
     Then the service responds 201 Created

@@ -12,5 +12,12 @@ import java.util.UUID;
  */
 public record RegisterContributionCommand(UUID periodId, UUID requesterAccountId, String operationNumber,
                                           @Nullable String payerName, String payeeName, BigDecimal amount,
-                                          LocalDate paidAt, ReceiptSource source) {
+                                          LocalDate paidAt, ReceiptSource source,
+                                          @Nullable ReadReceipt readByApp) {
+
+    /**
+     * What the application read from the receipt, before the member could change it.
+     */
+    public record ReadReceipt(String operationNumber, String payeeName, BigDecimal amount, LocalDate paidAt) {
+    }
 }

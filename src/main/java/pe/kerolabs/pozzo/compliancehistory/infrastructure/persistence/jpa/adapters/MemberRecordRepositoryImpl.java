@@ -58,6 +58,13 @@ public class MemberRecordRepositoryImpl implements MemberRecordRepository {
         entity.setCyclesCompleted(summary.cyclesCompleted());
         entity.setLevel(summary.level());
         entity.setUpdatedAt(record.getUpdatedAt());
+        // Facts taken out of the record are deleted: the collection does not remove orphans by itself.
+        var kept = record.getEntries().stream().map(ComplianceEntry::getId).collect(Collectors.toSet());
+        var withdrawn = entity.getEntries().stream().filter(entry -> !kept.contains(entry.getId())).toList();
+        if (!withdrawn.isEmpty()) {
+            entity.getEntries().removeAll(withdrawn);
+            entryRepository.deleteAll(withdrawn);
+        }
         var existing = entity.getEntries().stream()
                 .collect(Collectors.toMap(ComplianceEntryPersistenceEntity::getId, Function.identity()));
         for (var entry : record.getEntries()) {

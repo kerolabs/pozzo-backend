@@ -3,6 +3,7 @@ package pe.kerolabs.pozzo.compliancehistory.application.commandservices;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.aggregates.MemberRecord;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.aggregates.ShareLink;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.RecordComplianceEntryCommand;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.WithdrawComplianceEntriesCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.RevokeShareLinkCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.ShareHistoryCommand;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
@@ -21,6 +22,15 @@ public interface ComplianceCommandService {
      * @return the updated member record, or an error if invalid
      */
     Result<MemberRecord, ApplicationError> handle(RecordComplianceEntryCommand command);
+
+    /**
+     * Takes out of the member's history the facts of these sources and recomputes the summary. A member without a
+     * history, or a source never recorded, changes nothing.
+     *
+     * @param command command with the member and the sources of the facts to take out
+     * @return the member record, or an error
+     */
+    Result<MemberRecord, ApplicationError> handle(WithdrawComplianceEntriesCommand command);
 
     /**
      * Creates a public 7-day share link for the member's compliance summary.

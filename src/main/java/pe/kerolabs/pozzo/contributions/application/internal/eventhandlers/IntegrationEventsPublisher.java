@@ -10,6 +10,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.events.AuctionClosedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.AuctionOpenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionCoveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionRejectedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionReviewReopenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionValidatedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleClosedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.CycleMemberDroppedEvent;
@@ -117,6 +118,14 @@ public class IntegrationEventsPublisher {
         eventPublisher.publishEvent(new ContributionReviewIntegrationEvent(event.contributionId(), cycle.getId(),
                 cycle.getGroupId(), cycle.getGroupName(), event.periodId(), member(cycle, event.membershipId()),
                 cycle.getOrganizerAccountId(), ContributionReviewIntegrationEvent.REJECTED, event.occurredAt()));
+    }
+
+    @EventListener
+    public void on(ContributionReviewReopenedEvent event) {
+        var cycle = cycle(event.cycleId());
+        eventPublisher.publishEvent(new ContributionReviewIntegrationEvent(event.contributionId(), cycle.getId(),
+                cycle.getGroupId(), cycle.getGroupName(), event.periodId(), member(cycle, event.membershipId()),
+                cycle.getOrganizerAccountId(), ContributionReviewIntegrationEvent.REOPENED, event.occurredAt()));
     }
 
     @EventListener
