@@ -39,7 +39,8 @@ public class PeriodStatusResourceFromViewAssembler {
                         contributionBehind(view, turn.membershipId()),
                         period.expectedFor(turn.membershipId())
                                 .map(expected -> expected.getAmount().amount())
-                                .orElse(cycle.getRules().contribution().amount())))
+                                .orElse(cycle.getRules().contribution().amount()),
+                        view.underReviewFor(turn.membershipId()).map(Contribution::getRegisteredAt).orElse(null)))
                 .toList();
         var collected = period.collected();
         return new PeriodStatusResource(
