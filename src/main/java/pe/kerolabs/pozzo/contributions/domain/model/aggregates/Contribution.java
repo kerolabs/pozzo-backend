@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionCoveredEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionRejectedEvent;
+import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionReviewReopenedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.ContributionValidatedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.events.InconsistencyDetectedEvent;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionMethod;
@@ -62,10 +63,12 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
      * @param expectedAmount what the member owes in the period
      * @param cutoffDate     the last day to pay
      * @param payeeName      who must appear as recipient
+     * @param readByApp      what the application read from the receipt before the member could change it; any
+     *                       difference sends the contribution to review. Null when the client does not send it.
      */
     public static Contribution fromReceipt(UUID cycleId, UUID periodId, UUID membershipId, UUID accountId,
                                            PaymentReceipt receipt, Money expectedAmount, LocalDate cutoffDate,
-                                           String payeeName, Instant now) {
+                                           String payeeName, @Nullable PaymentReceipt readByApp, Instant now) {
         var contribution = base(cycleId, periodId, membershipId, accountId, receipt.amount(),
                 ContributionMethod.TRANSFER, accountId, now);
         contribution.receipt = receipt;
@@ -79,6 +82,9 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         if (receipt.paidAt().isAfter(cutoffDate)) {
             contribution.inconsistencies.add(new Inconsistency(
                     Inconsistency.DATE, cutoffDate.toString(), receipt.paidAt().toString()));
+        }
+        if (readByApp != null) {
+            contribution.inconsistencies.addAll(editsOf(readByApp, receipt));
         }
         if (contribution.inconsistencies.isEmpty()) {
             contribution.status = ContributionStatus.VALIDATED;
@@ -146,6 +152,24 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
         var onTime = receipt != null && !receipt.paidAt().isAfter(cutoffDate);
         registerDomainEvent(new ContributionValidatedEvent(id, cycleId, periodId, membershipId, accountId,
                 method, onTime, now));
+    }
+
+    /**
+     * The organizer takes back an approval or a rejection: the contribution waits for review again.
+     *
+     * @return the decision that was taken back
+     */
+    public ReviewDecision reopenReview(UUID organizerAccountId, Instant now) {
+        if (review == null || (status != ContributionStatus.APPROVED && status != ContributionStatus.REJECTED)) {
+            throw new BusinessRuleViolationException("CONTRIBUTION_NOT_REVIEWED",
+                    "Only an approved or rejected contribution can be reviewed again");
+        }
+        var previous = review.decision();
+        this.status = ContributionStatus.INCONSISTENT;
+        this.review = null;
+        registerDomainEvent(new ContributionReviewReopenedEvent(id, cycleId, periodId, membershipId,
+                organizerAccountId, previous, now));
+        return previous;
     }
 
     /**
@@ -220,6 +244,27 @@ public class Contribution extends AbstractDomainAggregateRoot<Contribution> {
             verificationToken = VerificationToken.random();
         }
         return verificationToken;
+    }
+
+    // Each field the member changed after the application read the receipt.
+    private static List<Inconsistency> editsOf(PaymentReceipt read, PaymentReceipt registered) {
+        var edits = new ArrayList<Inconsistency>();
+        if (!read.amount().isSameAmountAs(registered.amount())) {
+            edits.add(new Inconsistency(Inconsistency.EDITED_AMOUNT, read.amount().toString(),
+                    registered.amount().toString()));
+        }
+        if (!read.payeeName().strip().equalsIgnoreCase(registered.payeeName().strip())) {
+            edits.add(new Inconsistency(Inconsistency.EDITED_PAYEE, read.payeeName(), registered.payeeName()));
+        }
+        if (!read.paidAt().equals(registered.paidAt())) {
+            edits.add(new Inconsistency(Inconsistency.EDITED_DATE, read.paidAt().toString(),
+                    registered.paidAt().toString()));
+        }
+        if (!read.operationNumber().strip().equals(registered.operationNumber().strip())) {
+            edits.add(new Inconsistency(Inconsistency.EDITED_OPERATION, read.operationNumber(),
+                    registered.operationNumber()));
+        }
+        return edits;
     }
 
     private void requireUnderReview() {

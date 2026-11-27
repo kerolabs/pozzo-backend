@@ -161,4 +161,34 @@ class PeriodTest {
         assertThat(credited.getPayoutMembershipId()).isEqualTo(marta);
         assertThat(credited.payoutAmount().amount()).isEqualByComparingTo("525");
     }
+
+    @Test
+    void takingBackAnApprovedContributionMakesTheMemberOweAgain() {
+        var sofiasContribution = UUID.randomUUID();
+        period.settle(anna, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(sofia, ExpectedStatus.PAID, sofiasContribution, NOW);
+        period.settle(marta, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        assertThat(period.getStatus()).isEqualTo(PeriodStatus.POT_COMPLETE);
+
+        assertThatThrownBy(() -> period.unsettle(sofia, UUID.randomUUID()))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("CONTRIBUTION_NOT_SETTLING");
+        period.unsettle(sofia, sofiasContribution);
+
+        assertThat(period.getStatus()).isEqualTo(PeriodStatus.OPEN);
+        assertThat(period.expectedFor(sofia).orElseThrow().isPending()).isTrue();
+    }
+
+    @Test
+    void nothingIsTakenBackOnceThePotWasDelivered() {
+        var sofiasContribution = UUID.randomUUID();
+        period.settle(anna, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(sofia, ExpectedStatus.PAID, sofiasContribution, NOW);
+        period.settle(marta, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.deliverPot(organizerAccount, NOW);
+
+        assertThatThrownBy(() -> period.unsettle(sofia, sofiasContribution))
+                .isInstanceOf(BusinessRuleViolationException.class)
+                .extracting("code").isEqualTo("POT_ALREADY_DELIVERED");
+    }
 }

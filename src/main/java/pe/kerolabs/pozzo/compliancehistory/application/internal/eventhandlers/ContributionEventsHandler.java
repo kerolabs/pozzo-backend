@@ -4,6 +4,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import pe.kerolabs.pozzo.compliancehistory.application.commandservices.ComplianceCommandService;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.RecordComplianceEntryCommand;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.commands.WithdrawComplianceEntriesCommand;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.EntryKind;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionReviewIntegrationEvent;
 import pe.kerolabs.pozzo.contributions.interfaces.events.ContributionSettledIntegrationEvent;
@@ -15,6 +16,8 @@ import pe.kerolabs.pozzo.contributions.interfaces.events.CycleMemberLinkedIntegr
  * Anti-corruption layer: translates the events of Contributions, expressed in contributions and
  * periods, into compliance facts. Members without the application have no history and are skipped.
  */
+import java.util.List;
+
 @Component
 public class ContributionEventsHandler {
 
@@ -38,7 +41,16 @@ public class ContributionEventsHandler {
     @EventListener
     public void on(ContributionReviewIntegrationEvent event) {
         var accountId = event.member().accountId();
-        if (accountId == null || !ContributionReviewIntegrationEvent.REJECTED.equals(event.stage())) {
+        if (accountId == null) {
+            return;
+        }
+        // An approval or a rejection taken back leaves no trace of what it had recorded.
+        if (ContributionReviewIntegrationEvent.REOPENED.equals(event.stage())) {
+            complianceCommandService.handle(new WithdrawComplianceEntriesCommand(accountId,
+                    List.of("settled:" + event.contributionId(), "rejected:" + event.contributionId())));
+            return;
+        }
+        if (!ContributionReviewIntegrationEvent.REJECTED.equals(event.stage())) {
             return;
         }
         complianceCommandService.handle(new RecordComplianceEntryCommand(accountId, event.cycleId(), event.groupId(),

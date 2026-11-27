@@ -14,6 +14,8 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCurrentPeriodQuer
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByGroupIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionStatus;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReviewedContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
@@ -106,6 +108,24 @@ public class ContributionQueryServiceImpl implements ContributionQueryService {
                                 contributionRepository.findAllByPeriodId(period.getId()).stream()
                                         .filter(Contribution::isUnderReview)
                                         .toList())));
+    }
+
+    @Override
+    public Optional<PeriodView> handle(GetReviewedContributionsQuery query) {
+        return periodRepository.findById(query.periodId())
+                .flatMap(period -> findForParticipant(period.getCycleId(), query.requesterAccountId())
+                        .filter(cycle -> cycle.isOrganizer(query.requesterAccountId()))
+                        .map(cycle -> {
+                            var all = contributionRepository.findAllByPeriodId(period.getId());
+                            var reviewed = period.isDelivered() ? List.<Contribution>of() : all.stream()
+                                    .filter(contribution -> contribution.getStatus() == ContributionStatus.APPROVED
+                                            || (contribution.getStatus() == ContributionStatus.REJECTED
+                                            && all.stream().noneMatch(other -> other != contribution
+                                            && other.getMembershipId().equals(contribution.getMembershipId())
+                                            && other.getStatus() != ContributionStatus.REJECTED)))
+                                    .toList();
+                            return new PeriodView(cycle, period, reviewed);
+                        }));
     }
 
     @Override
