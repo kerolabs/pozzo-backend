@@ -76,10 +76,14 @@ public class ComplianceQueryServiceImpl implements ComplianceQueryService {
         }
         return shareLinkRepository.findByToken(token)
                 .filter(link -> link.isValid(now))
-                .map(link -> new SharedHistory(
-                        externalContextsService.fetchDisplayName(link.getAccountId()).orElse(""),
-                        summaryOf(link.getAccountId()),
-                        link.getExpiresAt()));
+                .map(link -> {
+                    var record = memberRecordRepository.findByAccountId(link.getAccountId());
+                    return new SharedHistory(
+                            externalContextsService.fetchDisplayName(link.getAccountId()).orElse(""),
+                            record.map(MemberRecord::getSummary).orElseGet(ComplianceSummary::empty),
+                            record.map(MemberRecord::groups).orElseGet(List::of),
+                            link.getExpiresAt());
+                });
     }
 
     private ComplianceSummary summaryOf(UUID accountId) {
