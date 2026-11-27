@@ -7,6 +7,7 @@ import pe.kerolabs.pozzo.compliancehistory.domain.model.queries.GetMemberSummary
 import pe.kerolabs.pozzo.compliancehistory.domain.model.queries.GetMyHistoryQuery;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.queries.GetSharedHistoryQuery;
 import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.ComplianceSummary;
+import pe.kerolabs.pozzo.compliancehistory.domain.model.valueobjects.GroupCompliance;
 
 import java.time.Instant;
 import java.util.List;
@@ -59,8 +60,9 @@ public interface ComplianceQueryService {
     }
 
     /**
-     * What a shared link shows: the name of the member and the summary.
+     * What a shared link shows: the name of the member, the summary and the compliance in each group.
      */
-    record SharedHistory(String displayName, ComplianceSummary summary, Instant expiresAt) {
+    record SharedHistory(String displayName, ComplianceSummary summary, List<GroupCompliance> groups,
+                         Instant expiresAt) {
     }
 }

@@ -35,6 +35,7 @@ Feature: TS08 Compliance history service
     When anyone opens the shared link without signing in
     Then the service responds 200 OK
     And the shared history shows "Sofia Gonzales" and the summary without amounts or group names
+    And the shared history has 1 group with 1 contribution on time
 
   Scenario: Open a revoked link
     Given "Sofia Gonzales" shared the history

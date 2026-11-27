@@ -94,4 +94,11 @@ public class ComplianceSteps {
         assertThat(state.response().text("$.summary.level")).isNotBlank();
         assertThat(state.response().body()).doesNotContain("Junta de la familia Weber").doesNotContain("amount");
     }
+
+    @Then("the shared history has {int} group with {int} contribution on time")
+    public void theSharedHistoryHasGroups(int groups, int onTime) {
+        assertThat(state.response().<List<Object>>read("$.groups")).hasSize(groups);
+        assertThat(state.response().<Integer>read("$.groups[0].onTime")).isEqualTo(onTime);
+        assertThat(state.response().<List<Object>>read("$.groups[*].groupId")).isEmpty();
+    }
 }
