@@ -91,7 +91,8 @@ public class PozzoApi {
     }
 
     /**
-     * Creates a monthly group of S/ 200 that sends the contributions to the organizer's Yape, fills it with
+     * Creates a monthly group of S/ 200, on the paid plan, that sends the contributions to the organizer's Yape,
+     * fills it with
      * the other members through an invitation, draws the turns and starts it.
      */
     public String createGroup(Member organizer, int seats) {
@@ -101,7 +102,8 @@ public class PozzoApi {
                 "periodicity", "MONTHLY",
                 "seats", seats,
                 "firstContributionDate", FIRST_CUTOFF.toString(),
-                "destination", Map.of("method", "YAPE", "phoneNumber", organizer.phoneNumber())));
+                "destination", Map.of("method", "YAPE", "phoneNumber", organizer.phoneNumber()),
+                "plan", "PAID"));
         if (created.status() != 201) {
             throw new IllegalStateException("Could not create the group: " + created.body());
         }

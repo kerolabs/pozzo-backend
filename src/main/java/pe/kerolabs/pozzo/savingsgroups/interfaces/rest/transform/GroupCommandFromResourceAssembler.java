@@ -2,6 +2,7 @@ package pe.kerolabs.pozzo.savingsgroups.interfaces.rest.transform;
 
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CreateGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DefineDestinationCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources.AddManualMemberResource;
@@ -27,7 +28,8 @@ public class GroupCommandFromResourceAssembler {
                 resource.seats(),
                 resource.firstContributionDate(),
                 destination == null ? null : destination.method(),
-                destination == null ? null : destination.phoneNumber());
+                destination == null ? null : destination.phoneNumber(),
+                resource.plan() == null ? GroupPlan.FREE : resource.plan());
     }
 
     public static UpdateRulesCommand toCommandFromResource(UUID groupId, UUID requesterId,

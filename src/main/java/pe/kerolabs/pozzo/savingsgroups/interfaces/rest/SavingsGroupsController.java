@@ -25,6 +25,7 @@ import pe.kerolabs.pozzo.iam.interfaces.acl.AuthenticatedMember;
 import pe.kerolabs.pozzo.savingsgroups.application.commandservices.SavingsGroupCommandService;
 import pe.kerolabs.pozzo.savingsgroups.application.queryservices.SavingsGroupQueryService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.DeleteGroupCommand;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ActivatePaidPlanCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.OpenNewCycleCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.queries.GetGroupByIdQuery;
@@ -122,6 +123,29 @@ public class SavingsGroupsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result,
                 group -> GroupResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
                 HttpStatus.CREATED);
+    }
+
+    @PostMapping("/groups/{groupId}/plan/paid")
+    @Operation(summary = "Activate the paid plan",
+            description = "Moves a group that has not started to the paid plan: more than six members, the auction "
+                    + "of the turns and no limit of active groups. It is a demonstration of the business model and "
+                    + "charges nothing. Only the organizer.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Group in the paid plan",
+                    content = @Content(schema = @Schema(implementation = GroupResource.class))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The group does not exist or the requester is not a member",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "The group already started",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> activatePaidPlan(@AuthenticationPrincipal AuthenticatedMember member,
+                                              @PathVariable UUID groupId) {
+        var result = savingsGroupCommandService.handle(new ActivatePaidPlanCommand(groupId, member.accountId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result,
+                group -> GroupResourceFromEntityAssembler.toResourceFromEntity(group, member.accountId()),
+                HttpStatus.OK);
     }
 
     @GetMapping("/groups/{groupId}")

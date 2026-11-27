@@ -44,6 +44,31 @@ public class SavingsGroupSteps {
 
     @When("{string} creates a monthly group {string} of S\\/ {int} with {int} seats and Yape as destination")
     public void createsAGroup(String organizer, String name, int amount, int seats) {
+        createGroupOnPlan(organizer, name, amount, seats, "PAID");
+    }
+
+    @When("{string} creates a group on the free plan with {int} seats")
+    public void createsAFreeGroup(String organizer, int seats) {
+        createGroupOnPlan(organizer, "Junta de la familia Weber", 200, seats, "FREE");
+    }
+
+    @Given("{string} has a group on the free plan")
+    public void hasAFreeGroup(String organizer) {
+        createGroupOnPlan(organizer, "Junta de la familia Weber", 200, 4, "FREE");
+        assertThat(state.response().status()).isEqualTo(201);
+    }
+
+    @When("{string} activates the paid plan of the group")
+    public void activatesThePaidPlan(String organizer) {
+        state.keepResponse(api.post(groupPath() + "/plan/paid", state.member(organizer), null));
+    }
+
+    @Then("the group is on the {string} plan")
+    public void theGroupIsOnThePlan(String plan) {
+        assertThat(api.get(groupPath(), state.organizer()).text("$.plan")).isEqualTo(plan);
+    }
+
+    private void createGroupOnPlan(String organizer, String name, int amount, int seats, String plan) {
         var member = state.member(organizer);
         var response = api.post("/api/v1/groups", member, Map.of(
                 "name", name,
@@ -51,7 +76,8 @@ public class SavingsGroupSteps {
                 "periodicity", "MONTHLY",
                 "seats", seats,
                 "firstContributionDate", PozzoApi.FIRST_CUTOFF.toString(),
-                "destination", Map.of("method", "YAPE", "phoneNumber", member.phoneNumber())));
+                "destination", Map.of("method", "YAPE", "phoneNumber", member.phoneNumber()),
+                "plan", plan));
         state.keepResponse(response);
         if (response.status() == 201) {
             state.keepGroup(organizer, response.text("$.id"), null);

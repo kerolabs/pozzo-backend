@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -45,5 +46,9 @@ public record CreateGroupResource(
 
         @Schema(description = "Where the contributions are sent; can be defined later", nullable = true)
         @Valid
-        DestinationResource destination) {
+        DestinationResource destination,
+
+        @Schema(description = "FREE (up to 6 members, one active group per organizer, no auction) or PAID; "
+                + "FREE when missing", nullable = true, example = "FREE")
+        GroupPlan plan) {
 }

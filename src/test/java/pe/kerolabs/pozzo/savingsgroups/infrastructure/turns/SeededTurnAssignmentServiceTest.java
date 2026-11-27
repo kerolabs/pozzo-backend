@@ -5,6 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.entities.Membership;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Money;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Periodicity;
@@ -29,7 +30,7 @@ class SeededTurnAssignmentServiceTest {
         var now = Instant.parse("2026-10-08T15:00:00Z");
         group = SavingsGroup.create(UUID.randomUUID(), "Anna Weber", "Junta de la familia Weber",
                 new GroupRules(Money.soles(new BigDecimal("200")), Periodicity.MONTHLY, 6, LocalDate.parse("2026-10-20"), null),
-                now);
+                GroupPlan.FREE, now);
         for (var name : new String[]{"Sofia Gonzales", "Marta Quispe", "Jorge Ramos", "Carla Vega", "Luis Paz"}) {
             group.join(UUID.randomUUID(), name, now);
         }

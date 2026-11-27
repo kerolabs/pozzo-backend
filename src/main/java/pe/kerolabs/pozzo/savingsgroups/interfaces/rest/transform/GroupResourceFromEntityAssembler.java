@@ -19,6 +19,7 @@ public class GroupResourceFromEntityAssembler {
                 group.getId(),
                 group.getName(),
                 group.getStatus(),
+                group.getPlan(),
                 group.isOrganizer(requesterId) ? "ORGANIZER" : "PARTICIPANT",
                 organizerName(group),
                 RulesResourceFromEntityAssembler.toResourceFromEntity(group.getRules(), true),
