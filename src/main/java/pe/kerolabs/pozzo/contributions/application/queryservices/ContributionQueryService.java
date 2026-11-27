@@ -8,6 +8,7 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetMemberContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPayoutProofQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReviewedContributionsQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.application.internal.outboundservices.receipts.ReceiptImageLink;
@@ -45,6 +46,12 @@ public interface ContributionQueryService {
      * The contributions of a period that wait for review; only for the organizer.
      */
     Optional<PeriodView> handle(GetPendingReviewsQuery query);
+
+    /**
+     * The contributions of a period the organizer approved or rejected and can still review again: not once the
+     * pot was delivered, nor a rejected one the member already replaced. Only for the organizer.
+     */
+    Optional<PeriodView> handle(GetReviewedContributionsQuery query);
 
     /**
      * A temporary link to the receipt image of a contribution, for the member it counts for or the

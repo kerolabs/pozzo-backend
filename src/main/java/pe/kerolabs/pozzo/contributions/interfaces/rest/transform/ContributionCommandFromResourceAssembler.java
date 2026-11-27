@@ -20,7 +20,10 @@ public class ContributionCommandFromResourceAssembler {
     public static RegisterContributionCommand toCommandFromResource(UUID periodId, UUID requesterId,
                                                                     RegisterContributionResource resource) {
         return new RegisterContributionCommand(periodId, requesterId, resource.operationNumber(),
-                resource.payerName(), resource.payeeName(), resource.amount(), resource.paidAt(), resource.source());
+                resource.payerName(), resource.payeeName(), resource.amount(), resource.paidAt(), resource.source(),
+                resource.readByApp() == null ? null : new RegisterContributionCommand.ReadReceipt(
+                        resource.readByApp().operationNumber(), resource.readByApp().payeeName(),
+                        resource.readByApp().amount(), resource.readByApp().paidAt()));
     }
 
     public static RegisterCashContributionCommand toCommandFromResource(UUID periodId, UUID requesterId,

@@ -74,11 +74,18 @@ public class ContributionEventsHandler {
             return;
         }
         var accountId = event.member().accountId();
-        if (accountId != null) {
-            notificationCommandService.handle(new SendAlertCommand(accountId, event.groupId(), event.periodId(),
-                    NotificationTexts.contributionRejected(event.groupName(), event.groupId()),
-                    "rejected:" + event.contributionId()));
+        if (accountId == null) {
+            return;
         }
+        if (ContributionReviewIntegrationEvent.REOPENED.equals(event.stage())) {
+            notificationCommandService.handle(new SendAlertCommand(accountId, event.groupId(), event.periodId(),
+                    NotificationTexts.reviewReopened(event.groupName(), event.groupId()),
+                    "reopened:" + event.contributionId() + ":" + event.occurredAt().toEpochMilli()));
+            return;
+        }
+        notificationCommandService.handle(new SendAlertCommand(accountId, event.groupId(), event.periodId(),
+                NotificationTexts.contributionRejected(event.groupName(), event.groupId()),
+                "rejected:" + event.contributionId()));
     }
 
     @TransactionalEventListener(fallbackExecution = true)

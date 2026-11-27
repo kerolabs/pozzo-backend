@@ -29,6 +29,8 @@ import pe.kerolabs.pozzo.contributions.domain.model.queries.GetCycleByIdQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.AttachReceiptImageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetPendingReviewsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReviewedContributionsQuery;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReopenReviewCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetReceiptImageQuery;
 import pe.kerolabs.pozzo.contributions.domain.model.queries.GetVerifiedContributionQuery;
 import pe.kerolabs.pozzo.contributions.infrastructure.links.VerifiedContributionLinkBuilder;
@@ -191,6 +193,28 @@ public class ContributionsController {
         return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
     }
 
+    @PostMapping("/contributions/{contributionId}/review/reopen")
+    @Operation(summary = "Review a contribution again",
+            description = "Only the organizer. Takes back an approval or a rejection while the pot of the period is "
+                    + "not delivered: the contribution waits for review again, an approval stops settling what the "
+                    + "member owed and the member is told.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Back under review",
+                    content = @Content(schema = @Schema(implementation = ContributionResource.class))),
+            @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "404", description = "The contribution does not exist",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class))),
+            @ApiResponse(responseCode = "422", description = "It was not reviewed, the pot was delivered or the member "
+                    + "already replaced the rejected receipt",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> reopenReview(@AuthenticationPrincipal AuthenticatedMember member,
+                                          @PathVariable UUID contributionId) {
+        var result = contributionCommandService.handle(new ReopenReviewCommand(contributionId, member.accountId()));
+        return ResponseEntityAssembler.toResponseEntityFromResult(result, contribution -> toResource(contribution, member), HttpStatus.OK);
+    }
+
     /**
      * Attaches an image file of the payment receipt to an existing contribution.
      * Only permitted for the member who registered the contribution.
@@ -314,6 +338,26 @@ public class ContributionsController {
     public ResponseEntity<?> getPendingReviews(@AuthenticationPrincipal AuthenticatedMember member,
                                                 @PathVariable UUID periodId) {
         return contributionQueryService.handle(new GetPendingReviewsQuery(periodId, member.accountId()))
+                .<ResponseEntity<?>>map(view -> ResponseEntity.ok(view.contributions().stream()
+                        .map(contribution -> ContributionResourceFromEntityAssembler.toResourceFromEntity(
+                                contribution, view.cycle()))
+                        .toList()))
+                .orElseGet(() -> ErrorResponseAssembler.toErrorResponseFromApplicationError(
+                        ApplicationError.notFound("Period", periodId.toString())));
+    }
+
+    @GetMapping("/periods/{periodId}/contributions/reviewed")
+    @Operation(summary = "List the contributions already reviewed",
+            description = "Only the organizer. The approved or rejected ones that can still be reviewed again.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Reviewed contributions",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = ContributionResource.class)))),
+            @ApiResponse(responseCode = "404", description = "The period does not exist or the requester is not the organizer",
+                    content = @Content(schema = @Schema(implementation = ErrorResource.class)))
+    })
+    public ResponseEntity<?> getReviewed(@AuthenticationPrincipal AuthenticatedMember member,
+                                         @PathVariable UUID periodId) {
+        return contributionQueryService.handle(new GetReviewedContributionsQuery(periodId, member.accountId()))
                 .<ResponseEntity<?>>map(view -> ResponseEntity.ok(view.contributions().stream()
                         .map(contribution -> ContributionResourceFromEntityAssembler.toResourceFromEntity(
                                 contribution, view.cycle()))

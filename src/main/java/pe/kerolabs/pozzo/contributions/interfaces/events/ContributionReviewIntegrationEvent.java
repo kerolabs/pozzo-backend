@@ -15,4 +15,6 @@ public record ContributionReviewIntegrationEvent(UUID contributionId, UUID cycle
 
     public static final String REQUIRED = "REQUIRED";
     public static final String REJECTED = "REJECTED";
+    /** The organizer took back an approval or a rejection; the contribution waits for review again. */
+    public static final String REOPENED = "REOPENED";
 }

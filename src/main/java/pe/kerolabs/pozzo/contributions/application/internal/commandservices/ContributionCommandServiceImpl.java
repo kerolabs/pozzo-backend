@@ -12,6 +12,9 @@ import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCashContrib
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.RegisterCoverageCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ReviewContributionCommand;
+import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
+import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ContributionStatus;
+import pe.kerolabs.pozzo.contributions.domain.model.commands.ReopenReviewCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.commands.ShareContributionCommand;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ExpectedStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
@@ -74,9 +77,13 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
                     var receipt = new PaymentReceipt(command.operationNumber(), command.payerName(),
                             command.payeeName(), Money.of(command.amount(), currency), command.paidAt(),
                             command.source());
+                    var read = command.readByApp();
+                    var readByApp = read == null ? null : new PaymentReceipt(read.operationNumber(),
+                            command.payerName(), read.payeeName(), Money.of(read.amount(), currency), read.paidAt(),
+                            command.source());
                     var contribution = Contribution.fromReceipt(cycle.getId(), period.getId(), member.membershipId(),
                             command.requesterAccountId(), receipt, expectedAmount(period, member.membershipId()),
-                            period.getCutoffDate(), cycle.getRules().payeeName(), now);
+                            period.getCutoffDate(), cycle.getRules().payeeName(), readByApp, now);
                     return Result.success(saveAndSettle(contribution, period, ExpectedStatus.PAID, now));
                 });
     }
@@ -154,6 +161,43 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
                     reviewed.reject(command.requesterAccountId(), command.note(), now);
                     return contributionRepository.save(reviewed);
                 });
+    }
+
+    @Override
+    public Result<Contribution, ApplicationError> handle(ReopenReviewCommand command) {
+        var now = clock.instant();
+        var contribution = contributionRepository.findById(command.contributionId());
+        if (contribution.isEmpty()) {
+            return Result.failure(ApplicationError.notFound("Contribution", command.contributionId().toString()));
+        }
+        return CycleAccess.requireOrganizer(cycleRepository, periodRepository, contribution.get().getPeriodId(),
+                        command.requesterAccountId())
+                .mapError(error -> error.code().equals("PERIOD_NOT_FOUND")
+                        ? ApplicationError.notFound("Contribution", command.contributionId().toString())
+                        : error)
+                .map(access -> {
+                    var reopened = contribution.get();
+                    var period = access.period();
+                    period.requireNotDelivered();
+                    // A rejected receipt the member already replaced cannot come back: there would be two.
+                    if (reopened.getStatus() == ContributionStatus.REJECTED && replacedLater(reopened)) {
+                        throw new BusinessRuleViolationException("CONTRIBUTION_REPLACED",
+                                "The member registered another contribution after this one was rejected");
+                    }
+                    var previous = reopened.reopenReview(command.requesterAccountId(), now);
+                    if (previous == ReviewDecision.APPROVE) {
+                        period.unsettle(reopened.getMembershipId(), reopened.getId());
+                        periodRepository.save(period);
+                    }
+                    return contributionRepository.save(reopened);
+                });
+    }
+
+    private boolean replacedLater(Contribution rejected) {
+        return contributionRepository.findAllByPeriodId(rejected.getPeriodId()).stream()
+                .anyMatch(other -> !other.getId().equals(rejected.getId())
+                        && other.getMembershipId().equals(rejected.getMembershipId())
+                        && other.getStatus() != ContributionStatus.REJECTED);
     }
 
     @Override

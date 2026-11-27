@@ -11,6 +11,7 @@ import pe.kerolabs.pozzo.shared.domain.model.aggregates.AbstractDomainAggregateR
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -51,6 +52,20 @@ public class MemberRecord extends AbstractDomainAggregateRoot<MemberRecord> {
         summary = scoring.summarize(entries);
         updatedAt = now;
         registerDomainEvent(new HistoryUpdatedEvent(accountId, entry.getKind(), now));
+    }
+
+    /**
+     * Takes out the facts recorded from these sources and recomputes the summary.
+     *
+     * @return whether any fact was taken out
+     */
+    public boolean withdraw(Collection<String> sourceEventIds, ComplianceScoringService scoring, Instant now) {
+        var removed = entries.removeIf(entry -> sourceEventIds.contains(entry.getSourceEventId()));
+        if (removed) {
+            summary = scoring.summarize(entries);
+            updatedAt = now;
+        }
+        return removed;
     }
 
     public List<ComplianceEntry> entriesInCycle(UUID cycleId) {

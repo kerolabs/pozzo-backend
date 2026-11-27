@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.contributions.domain.model.entities;
 
 import lombok.Getter;
+import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 import org.jspecify.annotations.Nullable;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.ExpectedStatus;
 import pe.kerolabs.pozzo.contributions.domain.model.valueobjects.Money;
@@ -62,6 +63,18 @@ public class ExpectedContribution {
         }
         this.status = how;
         this.settledByContributionId = contributionId;
+    }
+
+    /**
+     * Takes back the contribution that settled what was owed: the member owes it again.
+     */
+    public void unsettle(UUID contributionId) {
+        if (!contributionId.equals(settledByContributionId)) {
+            throw new BusinessRuleViolationException("CONTRIBUTION_NOT_SETTLING",
+                    "The contribution did not settle what the member owed");
+        }
+        this.status = ExpectedStatus.PENDING;
+        this.settledByContributionId = null;
     }
 
     /**

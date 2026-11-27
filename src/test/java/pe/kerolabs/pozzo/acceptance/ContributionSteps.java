@@ -134,6 +134,47 @@ public class ContributionSteps {
         review(organizer, member, "REJECT");
     }
 
+    @Given("{string} approved the contribution of {string}")
+    public void approved(String organizer, String member) {
+        review(organizer, member, "APPROVE");
+        assertThat(state.response().status()).isEqualTo(200);
+        List<String> reviewed = api.get("/api/v1/periods/" + currentPeriodId() + "/contributions/reviewed",
+                state.member(organizer)).read("$[*].id");
+        assertThat(reviewed).containsExactly(state.contributionOf(member));
+    }
+
+    @When("{string} reviews the contribution of {string} again")
+    public void reviewsAgain(String organizer, String member) {
+        state.keepResponse(api.post("/api/v1/contributions/" + state.contributionOf(member) + "/review/reopen",
+                state.member(organizer), null));
+    }
+
+    @Then("{string} no longer appears as paid in the pot")
+    public void noLongerAppearsAsPaid(String name) {
+        assertThat(statusInPot(name)).isNotEqualTo("VALIDATED");
+    }
+
+    @Then("the organizer sees no contribution reviewed in the period")
+    public void noContributionReviewed() {
+        List<String> reviewed = api.get("/api/v1/periods/" + currentPeriodId() + "/contributions/reviewed",
+                state.organizer()).read("$[*].id");
+        assertThat(reviewed).isEmpty();
+    }
+
+    @When("{string} registers a receipt of S\\/ {int} paid to {string} that the application read as S\\/ {int}")
+    public void registersACorrectedReceipt(String name, int amount, String payee, int read) {
+        var paidAt = PozzoApi.FIRST_CUTOFF.minusDays(1).toString();
+        var response = api.post("/api/v1/periods/" + currentPeriodId() + "/contributions", state.member(name),
+                Map.of("operationNumber", "07112233", "payeeName", payee, "amount", amount, "paidAt", paidAt,
+                        "source", "YAPE",
+                        "readByApp", Map.of("operationNumber", "07112233", "payeeName", payee, "amount", read,
+                                "paidAt", paidAt)));
+        state.keepResponse(response);
+        if (response.status() == 201) {
+            state.keepContribution(name, response.text("$.id"));
+        }
+    }
+
     private void review(String organizer, String member, String decision) {
         state.keepResponse(api.patch("/api/v1/contributions/" + state.contributionOf(member) + "/review",
                 state.member(organizer), Map.of("decision", decision, "note", "Checked with the bank statement")));
