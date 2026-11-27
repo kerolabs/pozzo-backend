@@ -51,6 +51,8 @@ public record PeriodStatusResource(
             @Schema(description = "VALIDATED, IN_REVIEW, PENDING, LATE or COVERED", example = "VALIDATED") String status,
             @Schema(description = "The contribution behind the state, if any", nullable = true) UUID contributionId,
             @Schema(description = "What the member owes in this period: the contribution, less the credit of an auction",
-                    example = "85.00") BigDecimal amount) {
+                    example = "85.00") BigDecimal amount,
+            @Schema(description = "When the contribution under review was registered; only while IN_REVIEW",
+                    nullable = true) Instant reviewSince) {
     }
 }
