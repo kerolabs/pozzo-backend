@@ -1,6 +1,7 @@
 package pe.kerolabs.pozzo.savingsgroups.interfaces.rest.resources;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnMethod;
 
@@ -16,6 +17,7 @@ public record GroupResource(
         @Schema(description = "Group identifier") UUID id,
         @Schema(description = "Name of the group", example = "Junta del barrio") String name,
         @Schema(description = "Lifecycle state", example = "DRAFT") GroupStatus status,
+        @Schema(description = "FREE or PAID", example = "FREE") GroupPlan plan,
         @Schema(description = "Role of the requester in the group", example = "ORGANIZER",
                 allowableValues = {"ORGANIZER", "PARTICIPANT"}) String role,
         @Schema(description = "Name of the organizer", example = "Anna Weber") String organizerName,

@@ -17,6 +17,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.PaymentMethod;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Periodicity;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionFallback;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.TurnMethod;
 import pe.kerolabs.pozzo.savingsgroups.infrastructure.persistence.jpa.embeddables.TurnSlotEmbeddable;
 import pe.kerolabs.pozzo.shared.infrastructure.persistence.jpa.entities.AbstractPersistenceEntity;
@@ -90,6 +91,11 @@ public class SavingsGroupPersistenceEntity extends AbstractPersistenceEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "auction_fallback", length = 10)
     private AuctionFallback auctionFallback;
+
+    /** Null for the groups created before the plans existed, which keep everything they had. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan", length = 10)
+    private GroupPlan plan;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)

@@ -18,6 +18,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.events.RulesUpdatedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.events.TurnsAssignedEvent;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.AuctionRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupStatus;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.MembershipKind;
@@ -41,7 +42,7 @@ import java.util.UUID;
  *
  * <p>It enforces the conditions to start (every seat taken, turns assigned and a destination for the
  * contributions) and fixes the rules once the group has started. The organizer is also a member and
- * collects a turn like everyone else.</p>
+ * collects a turn like everyone else. Its plan limits the number of members and the auction of the turns.</p>
  */
 @Getter
 public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
@@ -58,6 +59,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
     private @Nullable String drawSeed;
     private @Nullable Instant turnsAssignedAt;
     private @Nullable AuctionRules auctionRules;
+    private GroupPlan plan = GroupPlan.FREE;
     private GroupStatus status;
     private Instant createdAt;
     private @Nullable Instant startedAt;
@@ -72,16 +74,19 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
      * @param organizerName the display name of the organizer
      * @param name          the name of the group
      * @param rules         the initial rules
+     * @param plan          the plan of the group; the free one allows up to six members
      * @param now           the current time
      * @return the new group, in DRAFT
      */
     public static SavingsGroup create(UUID organizerId, String organizerName, String name, GroupRules rules,
-                                      Instant now) {
+                                      GroupPlan plan, Instant now) {
+        requireSeatsAllowed(plan, rules.seats());
         var group = new SavingsGroup();
         group.id = UUID.randomUUID();
         group.name = requireName(name);
         group.organizerId = organizerId;
         group.rules = rules;
+        group.plan = plan;
         group.status = GroupStatus.DRAFT;
         group.createdAt = now;
         group.memberships.add(Membership.ofAppMember(organizerId, organizerName, now));
@@ -179,6 +184,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
      */
     public void updateRules(String name, GroupRules newRules, Instant now) {
         requireNotStarted();
+        requireSeatsAllowed(plan, newRules.seats());
         if (newRules.seats() < activeMembersCount()) {
             throw new BusinessRuleViolationException("SEATS_BELOW_MEMBERS",
                     "The group already has %d members".formatted(activeMembersCount()));
@@ -439,6 +445,10 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
      */
     public void assignTurnsByAuction(AuctionRules rules, Instant now) {
         requireNotStarted();
+        if (plan == GroupPlan.FREE) {
+            throw new BusinessRuleViolationException("AUCTION_REQUIRES_PAID_PLAN",
+                    "The auction of the turns is part of the paid plan");
+        }
         if (!isFull()) {
             throw new BusinessRuleViolationException("SAVINGS_GROUP_NOT_FULL",
                     "Every seat must be taken before assigning the turns");
@@ -455,6 +465,29 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         this.auctionRules = rules;
         registerDomainEvent(new TurnsAssignedEvent(id, TurnMethod.AUCTION, now));
         refreshReadiness();
+    }
+
+    /**
+     * Moves the group to the paid plan before it starts. There is no real charge: the plan is activated as a
+     * demonstration of the business model.
+     */
+    public void activatePaidPlan() {
+        requireNotStarted();
+        this.plan = GroupPlan.PAID;
+    }
+
+    /**
+     * Whether the group counts towards the single active group of the free plan its organizer can have.
+     */
+    public boolean usesFreePlanSlot() {
+        return plan == GroupPlan.FREE && status != GroupStatus.CLOSED;
+    }
+
+    /**
+     * Restores the plan from persistence.
+     */
+    public void restorePlan(GroupPlan plan) {
+        this.plan = plan;
     }
 
     /**
@@ -502,6 +535,13 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
 
     // Invariants
 
+    private static void requireSeatsAllowed(GroupPlan plan, int seats) {
+        if (plan == GroupPlan.FREE && seats > GroupPlan.FREE_MAX_SEATS) {
+            throw new BusinessRuleViolationException("FREE_PLAN_SEATS_EXCEEDED",
+                    "The free plan allows up to %d members".formatted(GroupPlan.FREE_MAX_SEATS));
+        }
+    }
+
     private void requireNotStarted() {
         if (isStarted()) {
             throw new BusinessRuleViolationException("SAVINGS_GROUP_ALREADY_STARTED",
@@ -548,7 +588,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
 
     /**
      * Opens the next cycle of a group whose cycle is over: a new group, still to start, with the same name,
-     * rules, destination and active members, so the organizer only reviews it, assigns the turns and starts it.
+     * rules, plan, destination and active members, so the organizer only reviews it, assigns the turns and starts it.
      *
      * @param firstContributionDate the cutoff of the first period of the new cycle
      * @return the new group
@@ -561,7 +601,7 @@ public class SavingsGroup extends AbstractDomainAggregateRoot<SavingsGroup> {
         var organizerName = membershipOf(organizerId).map(Membership::getDisplayName).orElse(name);
         var nextRules = new GroupRules(rules.contribution(), rules.periodicity(), rules.seats(), firstContributionDate,
                 rules.destination());
-        var next = create(organizerId, organizerName, name, nextRules, now);
+        var next = create(organizerId, organizerName, name, nextRules, plan, now);
         activeMemberships().stream()
                 .filter(membership -> !membership.belongsTo(organizerId))
                 .forEach(membership -> next.memberships.add(membership.getKind() == MembershipKind.APP

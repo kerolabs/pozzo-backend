@@ -6,6 +6,7 @@ import pe.kerolabs.pozzo.savingsgroups.application.commandservices.SavingsGroupC
 import pe.kerolabs.pozzo.savingsgroups.application.internal.outboundservices.acl.ExternalIamService;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.Invitation;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.aggregates.SavingsGroup;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ActivatePaidPlanCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.AddManualMemberCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ApplySwappedTurnsCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.CloseGroupCommand;
@@ -22,6 +23,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.ReplaceMemberComman
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.StartGroupCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.commands.UpdateRulesCommand;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Destination;
+import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupPlan;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.GroupRules;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.InvitationCode;
 import pe.kerolabs.pozzo.savingsgroups.domain.model.valueobjects.Money;
@@ -29,6 +31,7 @@ import pe.kerolabs.pozzo.savingsgroups.domain.repositories.InvitationRepository;
 import pe.kerolabs.pozzo.savingsgroups.domain.repositories.SavingsGroupRepository;
 import pe.kerolabs.pozzo.shared.application.result.ApplicationError;
 import pe.kerolabs.pozzo.shared.application.result.Result;
+import pe.kerolabs.pozzo.shared.domain.exceptions.BusinessRuleViolationException;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -46,6 +49,8 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
     /** Savings groups follow the calendar of Peru. */
     static final ZoneId GROUP_ZONE = ZoneId.of("America/Lima");
     private static final int CODE_GENERATION_ATTEMPTS = 5;
+    private static final String FREE_PLAN_IN_USE = "FREE_PLAN_IN_USE";
+    private static final String FREE_PLAN_IN_USE_REASON = "The organizer already has an active group of the free plan";
 
     private final SavingsGroupRepository savingsGroupRepository;
     private final InvitationRepository invitationRepository;
@@ -75,10 +80,13 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
         var destination = command.destinationMethod() == null
                 ? null
                 : Destination.of(command.destinationMethod(), command.destinationPhoneNumber());
+        if (command.plan() == GroupPlan.FREE && hasActiveFreeGroup(command.organizerId())) {
+            return Result.failure(ApplicationError.businessRuleViolation(FREE_PLAN_IN_USE, FREE_PLAN_IN_USE_REASON));
+        }
         var rules = new GroupRules(Money.soles(command.contributionAmount()), command.periodicity(),
                 command.seats(), command.firstContributionDate(), destination);
         var group = SavingsGroup.create(command.organizerId(), organizerName.get(), command.name(), rules,
-                clock.instant());
+                command.plan(), clock.instant());
         return Result.success(savingsGroupRepository.save(group));
     }
 
@@ -236,8 +244,31 @@ public class SavingsGroupCommandServiceImpl implements SavingsGroupCommandServic
             return Result.failure(dateError);
         }
         return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
-                .map(group -> savingsGroupRepository.save(
-                        group.openNewCycle(command.firstContributionDate(), clock.instant())));
+                .map(group -> {
+                    // The new cycle keeps the plan; a free one still has to be the organizer's only active group.
+                    if (group.getPlan() == GroupPlan.FREE && hasActiveFreeGroup(group.getOrganizerId())) {
+                        throw new BusinessRuleViolationException(FREE_PLAN_IN_USE, FREE_PLAN_IN_USE_REASON);
+                    }
+                    return savingsGroupRepository.save(group.openNewCycle(command.firstContributionDate(),
+                            clock.instant()));
+                });
+    }
+
+    @Override
+    public Result<SavingsGroup, ApplicationError> handle(ActivatePaidPlanCommand command) {
+        return SavingsGroupAccess.requireOrganizer(savingsGroupRepository, command.groupId(), command.requesterId())
+                .map(group -> {
+                    group.activatePaidPlan();
+                    return savingsGroupRepository.save(group);
+                });
+    }
+
+    /**
+     * Whether the organizer already has a group of the free plan that is not closed.
+     */
+    private boolean hasActiveFreeGroup(UUID organizerId) {
+        return savingsGroupRepository.findAllByMemberId(organizerId).stream()
+                .anyMatch(group -> group.isOrganizer(organizerId) && group.usesFreePlanSlot());
     }
 
     @Override
