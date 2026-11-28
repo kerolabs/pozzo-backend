@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -18,7 +19,8 @@ public record RegisterCashContributionResource(
         @NotNull
         UUID membershipId,
 
-        @Schema(description = "Amount received, in soles; it must be the contribution", example = "300.00")
+        @Schema(description = "Amount received, in soles. An amount other than what the member owes needs "
+                + "differenceConfirmed", example = "300.00")
         @NotNull
         @DecimalMin("0.01")
         @Digits(integer = 10, fraction = 2)
@@ -26,5 +28,10 @@ public record RegisterCashContributionResource(
 
         @Schema(description = "Day the cash was received", example = "2026-12-31")
         @NotNull
-        LocalDate receivedOn) {
+        LocalDate receivedOn,
+
+        @Schema(description = "True once the organizer confirmed an amount other than what the member owes",
+                example = "false")
+        @Nullable
+        Boolean differenceConfirmed) {
 }

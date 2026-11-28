@@ -29,7 +29,7 @@ public class ContributionCommandFromResourceAssembler {
     public static RegisterCashContributionCommand toCommandFromResource(UUID periodId, UUID requesterId,
                                                                         RegisterCashContributionResource resource) {
         return new RegisterCashContributionCommand(periodId, requesterId, resource.membershipId(), resource.amount(),
-                resource.receivedOn());
+                resource.receivedOn(), Boolean.TRUE.equals(resource.differenceConfirmed()));
     }
 
     public static RegisterCoverageCommand toCommandFromResource(UUID periodId, UUID requesterId,

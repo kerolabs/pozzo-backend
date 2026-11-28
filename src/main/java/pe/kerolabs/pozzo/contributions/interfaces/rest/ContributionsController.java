@@ -117,13 +117,15 @@ public class ContributionsController {
      * @return 201 Created with contribution details, or error status
      */
     @PostMapping("/periods/{periodId}/contributions/cash")
-    @Operation(summary = "Register a cash contribution", description = "Only the organizer, for any member.")
+    @Operation(summary = "Register a cash contribution",
+            description = "Only the organizer, for any member. An amount other than what the member owes is "
+                    + "registered only with differenceConfirmed set to true.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Registered and validated",
                     content = @Content(schema = @Schema(implementation = ContributionResource.class))),
             @ApiResponse(responseCode = "403", description = "The requester is not the organizer",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class))),
-            @ApiResponse(responseCode = "422", description = "Already settled or a different amount",
+            @ApiResponse(responseCode = "422", description = "Already settled, or a different amount not confirmed",
                     content = @Content(schema = @Schema(implementation = ErrorResource.class)))
     })
     public ResponseEntity<?> registerCash(@AuthenticationPrincipal AuthenticatedMember member,

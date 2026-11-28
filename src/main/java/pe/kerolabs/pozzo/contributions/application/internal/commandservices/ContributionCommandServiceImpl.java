@@ -106,9 +106,12 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
                     }
                     var expected = expectedAmount(period, command.membershipId());
                     var amount = Money.of(command.amount(), expected.currency());
-                    if (!amount.isSameAmountAs(expected)) {
-                        return Result.failure(ApplicationError.businessRuleViolation(
-                                "AMOUNT_MISMATCH", "The cash amount must be the contribution of %s".formatted(expected)));
+                    // US27: an amount other than what the member owes is registered only once the organizer
+                    // confirmed the difference.
+                    if (!amount.isSameAmountAs(expected) && !command.differenceConfirmed()) {
+                        return Result.failure(ApplicationError.businessRuleViolation("AMOUNT_MISMATCH",
+                                "The cash amount differs from the contribution of %s; confirm the difference to register it"
+                                        .formatted(expected)));
                     }
                     var contribution = Contribution.inCash(cycle.getId(), period.getId(), command.membershipId(),
                             member.get().accountId(), amount, command.receivedOn(), period.getCutoffDate(),
