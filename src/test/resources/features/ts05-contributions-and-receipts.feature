@@ -63,6 +63,17 @@ Feature: TS05 Contributions and receipts service
     Then the service responds 201 Created
     And the contribution has the method "CASH" and the status "VALIDATED"
 
+  Scenario: A different cash amount needs the organizer to confirm it
+    When "Anna Weber" registers S/ 150 in cash for "Sofia Gonzales"
+    Then the service responds 422 Unprocessable Entity
+    And the error code is "AMOUNT_MISMATCH"
+
+  Scenario: Register a different cash amount the organizer confirmed
+    When "Anna Weber" registers S/ 150 in cash for "Sofia Gonzales" confirming the difference
+    Then the service responds 201 Created
+    And the contribution has the method "CASH" and the status "VALIDATED"
+    And the contribution has the amount S/ 150
+
   Scenario: State of the period
     Given "Sofia Gonzales" registered a receipt of S/ 200 paid to "Anna Weber" with the operation "04581273"
     When "Sofia Gonzales" checks the state of the pot
