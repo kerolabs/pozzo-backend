@@ -242,7 +242,7 @@ public class ContributionCommandServiceImpl implements ContributionCommandServic
     private Contribution saveAndSettle(Contribution contribution, Period period, ExpectedStatus how, Instant now) {
         var saved = contributionRepository.save(contribution);
         if (saved.isValid()) {
-            period.settle(saved.getMembershipId(), how, saved.getId(), now);
+            period.settle(saved.getMembershipId(), how, saved.getId(), saved.getAmount(), now);
             periodRepository.save(period);
         }
         return saved;

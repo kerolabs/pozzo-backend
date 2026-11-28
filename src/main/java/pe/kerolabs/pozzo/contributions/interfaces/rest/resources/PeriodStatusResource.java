@@ -27,7 +27,7 @@ public record PeriodStatusResource(
         @Schema(description = "Name of the member who collects", example = "Carla Vega") String payoutMemberName,
         @Schema(description = "Contribution per member", example = "300.00") BigDecimal contributionAmount,
         @Schema(description = "Full pot", example = "2400.00") BigDecimal potAmount,
-        @Schema(description = "Gathered so far", example = "1200.00") BigDecimal collectedAmount,
+        @Schema(description = "Gathered so far: what the members who settled put in", example = "1200.00") BigDecimal collectedAmount,
         @Schema(description = "Still missing", example = "1200.00") BigDecimal missingAmount,
         @Schema(description = "Members who already settled", example = "4") int settledCount,
         @Schema(description = "Members of the cycle", example = "8") int membersCount,
@@ -35,7 +35,8 @@ public record PeriodStatusResource(
         @Schema(description = "When the pot was delivered", nullable = true) Instant deliveredAt,
         @Schema(description = "Whether the organizer attached the image of the transfer of the pot", example = "false")
         boolean hasPayoutProof,
-        @Schema(description = "What the member who collects receives: the pot less the discount of an auction",
+        @Schema(description = "What the member who collects receives: the pot, corrected by what the members "
+                + "who settled put in, less the discount of an auction",
                 example = "550.00") BigDecimal payoutAmount,
         @Schema(description = "Every member with the state of their contribution") List<MemberStatus> members) {
 

@@ -20,6 +20,7 @@ public class ExpectedContribution {
     private Money amount;
     private ExpectedStatus status;
     private @Nullable UUID settledByContributionId;
+    private @Nullable Money receivedAmount;
 
     public ExpectedContribution() {
     }
@@ -55,14 +56,27 @@ public class ExpectedContribution {
     }
 
     /**
-     * Marks what was owed as paid or covered by a contribution.
+     * Marks what was owed as paid or covered by a contribution of the given amount, which can differ from what
+     * was owed when the organizer confirmed a different cash amount or approved a receipt that did not match.
      */
-    public void settle(ExpectedStatus how, UUID contributionId) {
+    public void settle(ExpectedStatus how, UUID contributionId, Money received) {
         if (how == ExpectedStatus.PENDING) {
             throw new IllegalArgumentException("A contribution is settled as paid or covered");
         }
         this.status = how;
         this.settledByContributionId = contributionId;
+        this.receivedAmount = received;
+    }
+
+    /**
+     * What this member put into the pot: nothing while pending, otherwise the amount of the contribution that
+     * settled it. Rows settled before the amount was kept count what was owed.
+     */
+    public Money received() {
+        if (isPending()) {
+            return Money.zero(amount.currency());
+        }
+        return receivedAmount == null ? amount : receivedAmount;
     }
 
     /**
@@ -75,17 +89,19 @@ public class ExpectedContribution {
         }
         this.status = ExpectedStatus.PENDING;
         this.settledByContributionId = null;
+        this.receivedAmount = null;
     }
 
     /**
      * Restores the entity from persistence.
      */
     public void restoreState(UUID id, UUID membershipId, Money amount, ExpectedStatus status,
-                             @Nullable UUID settledByContributionId) {
+                             @Nullable UUID settledByContributionId, @Nullable Money receivedAmount) {
         this.id = id;
         this.membershipId = membershipId;
         this.amount = amount;
         this.status = status;
         this.settledByContributionId = settledByContributionId;
+        this.receivedAmount = receivedAmount;
     }
 }

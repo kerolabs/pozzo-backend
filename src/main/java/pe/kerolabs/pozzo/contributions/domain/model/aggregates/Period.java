@@ -105,11 +105,11 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     }
 
     /**
-     * The amount gathered so far: what the members who already settled owed.
+     * The amount gathered so far: what the members who already settled put into the pot, which is less than
+     * what they owed when the organizer accepted a smaller amount.
      */
     public Money collected() {
-        return expected.stream().filter(item -> !item.isPending())
-                .map(ExpectedContribution::getAmount)
+        return expected.stream().map(ExpectedContribution::received)
                 .reduce(Money::plus)
                 .orElseGet(() -> Money.zero(potAmount().currency()));
     }
@@ -125,13 +125,23 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
      * Records that a member settled what was owed. When it is the last one, the pot is complete.
      */
     public void settle(UUID membershipId, ExpectedStatus how, UUID contributionId, Instant now) {
+        var owed = expectedFor(membershipId).map(ExpectedContribution::getAmount).orElse(null);
+        settle(membershipId, how, contributionId, owed, now);
+    }
+
+    /**
+     * Records that a member settled what was owed with a contribution of the given amount, which the pot adds
+     * instead of what was owed. When it is the last one, the pot is complete.
+     */
+    public void settle(UUID membershipId, ExpectedStatus how, UUID contributionId, @Nullable Money received,
+                       Instant now) {
         var item = expectedFor(membershipId).orElseThrow(() -> new BusinessRuleViolationException(
                 "NOT_A_CYCLE_MEMBER", "The member does not take part in this cycle"));
         if (!item.isPending()) {
             throw new BusinessRuleViolationException("CONTRIBUTION_ALREADY_SETTLED",
                     "The member already settled this period");
         }
-        item.settle(how, contributionId);
+        item.settle(how, contributionId, received);
         if (status == PeriodStatus.OPEN && isPotComplete()) {
             status = PeriodStatus.POT_COMPLETE;
             registerDomainEvent(new PotCompletedEvent(id, cycleId, turnNumber, now));
@@ -229,10 +239,16 @@ public class Period extends AbstractDomainAggregateRoot<Period> {
     }
 
     /**
-     * What the member who collects receives: the pot, less the discount they offered in an auction.
+     * What the member who collects receives: the pot, corrected by what the members who settled put in instead
+     * of what they owed, less the discount they offered in an auction.
      */
     public Money payoutAmount() {
-        return discount == null ? potAmount() : potAmount().minus(discount);
+        var settledOwed = expected.stream().filter(item -> !item.isPending())
+                .map(ExpectedContribution::getAmount)
+                .reduce(Money::plus)
+                .orElseGet(() -> Money.zero(potAmount().currency()));
+        var pot = potAmount().minus(settledOwed).plus(collected());
+        return discount == null ? pot : pot.minus(discount);
     }
 
     /**
