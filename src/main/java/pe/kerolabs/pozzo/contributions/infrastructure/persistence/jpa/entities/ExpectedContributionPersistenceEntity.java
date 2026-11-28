@@ -48,4 +48,8 @@ public class ExpectedContributionPersistenceEntity extends AbstractPersistenceEn
 
     @Column(name = "settled_by_contribution")
     private UUID settledByContribution;
+
+    /** What the contribution that settled it put into the pot; null while pending and in rows settled before. */
+    @Column(name = "received_amount", precision = 12, scale = 2)
+    private BigDecimal receivedAmount;
 }

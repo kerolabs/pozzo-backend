@@ -79,6 +79,32 @@ class PeriodTest {
     }
 
     @Test
+    void thePotAddsWhatAMemberPutInWhenItDiffersFromWhatWasOwed() {
+        period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), Money.of(new BigDecimal("150"), Money.PEN), NOW);
+
+        assertThat(period.collected().amount()).isEqualByComparingTo("150.00");
+        assertThat(period.payoutAmount().amount()).isEqualByComparingTo("550.00");
+
+        period.settle(anna, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+        period.settle(marta, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
+
+        assertThat(period.getStatus()).isEqualTo(PeriodStatus.POT_COMPLETE);
+        assertThat(period.collected().amount()).isEqualByComparingTo("550.00");
+        assertThat(period.payoutAmount().amount()).isEqualByComparingTo("550.00");
+    }
+
+    @Test
+    void aReopenedContributionTakesItsAmountOutOfThePot() {
+        var contribution = UUID.randomUUID();
+        period.settle(sofia, ExpectedStatus.PAID, contribution, Money.of(new BigDecimal("150"), Money.PEN), NOW);
+
+        period.unsettle(sofia, contribution);
+
+        assertThat(period.collected().amount()).isEqualByComparingTo("0.00");
+        assertThat(period.payoutAmount().amount()).isEqualByComparingTo("600.00");
+    }
+
+    @Test
     void aMemberCannotSettleTheSamePeriodTwice() {
         period.settle(sofia, ExpectedStatus.PAID, UUID.randomUUID(), NOW);
 
