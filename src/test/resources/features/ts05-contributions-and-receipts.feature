@@ -73,6 +73,8 @@ Feature: TS05 Contributions and receipts service
     Then the service responds 201 Created
     And the contribution has the method "CASH" and the status "VALIDATED"
     And the contribution has the amount S/ 150
+    When "Sofia Gonzales" checks the state of the pot
+    Then the pot has S/ 150 collected of S/ 400 and S/ 250 missing
 
   Scenario: State of the period
     Given "Sofia Gonzales" registered a receipt of S/ 200 paid to "Anna Weber" with the operation "04581273"

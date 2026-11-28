@@ -23,7 +23,9 @@ public final class PeriodPersistenceAssembler {
                     var domain = new ExpectedContribution();
                     domain.restoreState(item.getId(), item.getMembershipId(),
                             Money.of(item.getAmount(), item.getCurrency()), item.getStatus(),
-                            item.getSettledByContribution());
+                            item.getSettledByContribution(),
+                            item.getReceivedAmount() == null ? null
+                                    : Money.of(item.getReceivedAmount(), item.getCurrency()));
                     return domain;
                 })
                 .toList();
@@ -68,6 +70,8 @@ public final class PeriodPersistenceAssembler {
             itemEntity.setCurrency(item.getAmount().currency());
             itemEntity.setStatus(item.getStatus());
             itemEntity.setSettledByContribution(item.getSettledByContributionId());
+            itemEntity.setReceivedAmount(
+                    item.getReceivedAmount() == null ? null : item.getReceivedAmount().amount());
         }
         return entity;
     }
