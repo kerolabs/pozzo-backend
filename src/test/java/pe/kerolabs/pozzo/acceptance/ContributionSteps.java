@@ -209,6 +209,18 @@ public class ContributionSteps {
                         "receivedOn", LocalDate.now().toString())));
     }
 
+    @When("{string} registers S\\/ {int} in cash for {string} confirming the difference")
+    public void registersCashConfirmingTheDifference(String organizer, int amount, String member) {
+        state.keepResponse(api.post("/api/v1/periods/" + currentPeriodId() + "/contributions/cash",
+                state.member(organizer), Map.of("membershipId", membershipInPot(member), "amount", amount,
+                        "receivedOn", LocalDate.now().toString(), "differenceConfirmed", true)));
+    }
+
+    @Then("the contribution has the amount S\\/ {int}")
+    public void hasTheAmount(int amount) {
+        assertThat(state.response().<Number>read("$.amount").intValue()).isEqualTo(amount);
+    }
+
     @Then("the contribution has the method {string} and the status {string}")
     public void hasTheMethodAndStatus(String method, String status) {
         assertThat(state.response().text("$.method")).isEqualTo(method);
